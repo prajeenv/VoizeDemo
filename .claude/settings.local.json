@@ -6,7 +6,13 @@
       "Bash(git add:*)",
       "Bash(cat:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nSTEP 3: Voice recording & speech-to-text implementation\n\nImplemented complete voice-to-text functionality for nursing workflows:\n\nCore Features:\n- Web Speech API integration with voiceService.ts\n- Custom React hook \\(useVoiceRecording\\) for state management\n- Real-time transcription with interim and final results\n- Pause/Resume recording functionality\n- Browser compatibility detection and validation\n\nNew Files:\n- nurse-app/src/services/voiceService.ts - Core voice recognition service\n- nurse-app/src/hooks/useVoiceRecording.ts - React hook wrapper\n- nurse-app/src/components/VoiceRecordingDemo.tsx - Full demo UI\n- nurse-app/src/utils/browserCompatibility.ts - Browser detection\n- nurse-app/src/types/speech-recognition.d.ts - Web Speech API types\n- nurse-app/VOICE_SERVICE_README.md - Complete API documentation\n- STEP_3_SUMMARY.md - Implementation summary\n\nUpdates:\n- Enhanced nurse-app/README.md with comprehensive documentation\n- Updated App.tsx to integrate VoiceRecordingDemo component\n- Migrated both apps to Tailwind CSS v4 \\(@import syntax\\)\n- Improved EHR Dashboard UI styling\n\nBrowser Support:\n- Chrome 25+ \\(fully supported\\)\n- Edge 79+ \\(fully supported\\)\n- Safari 14.1+ \\(fully supported\\)\n\nNext Steps: Workflow selection UI and note template system\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(dir /s /b \"c:\\\\Wordspace\\\\Voize demo\\\\shared-types\")",
+      "Bash(findstr:*)",
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(curl:*)"
     ]
   }
 }
