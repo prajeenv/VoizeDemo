@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { WorkflowContainer } from './components/WorkflowContainer'
 import { VoiceRecordingDemo } from './components/VoiceRecordingDemo'
 import { MicrophoneTest } from './components/MicrophoneTest'
+import ParserDemo from './components/ParserDemo'
 
-type ViewMode = 'workflows' | 'demo' | 'diagnostics'
+type ViewMode = 'workflows' | 'demo' | 'diagnostics' | 'parser'
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('workflows')
@@ -16,10 +17,16 @@ function App() {
             <div className="container mx-auto px-4 py-3">
               <div className="flex items-center justify-end gap-2">
                 <button
+                  onClick={() => setViewMode('parser')}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-sm"
+                >
+                  Parser Demo
+                </button>
+                <button
                   onClick={() => setViewMode('demo')}
                   className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors text-sm"
                 >
-                  View Demo
+                  Voice Demo
                 </button>
                 <button
                   onClick={() => setViewMode('diagnostics')}
@@ -48,17 +55,47 @@ function App() {
                   ← Back to Workflows
                 </button>
                 <button
-                  onClick={() => setViewMode(viewMode === 'demo' ? 'diagnostics' : 'demo')}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  onClick={() => setViewMode('parser')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    viewMode === 'parser'
+                      ? 'bg-purple-700 text-white'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
                 >
-                  {viewMode === 'demo' ? 'Run Diagnostics' : 'Show Demo'}
+                  Parser
+                </button>
+                <button
+                  onClick={() => setViewMode('demo')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    viewMode === 'demo'
+                      ? 'bg-gray-700 text-white'
+                      : 'bg-gray-600 hover:bg-gray-700 text-white'
+                  }`}
+                >
+                  Voice
+                </button>
+                <button
+                  onClick={() => setViewMode('diagnostics')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    viewMode === 'diagnostics'
+                      ? 'bg-blue-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  Diagnostics
                 </button>
               </div>
             </div>
           </header>
 
           <main>
-            {viewMode === 'diagnostics' ? <MicrophoneTest /> : <VoiceRecordingDemo />}
+            {viewMode === 'diagnostics' ? (
+              <MicrophoneTest />
+            ) : viewMode === 'parser' ? (
+              <ParserDemo />
+            ) : (
+              <VoiceRecordingDemo />
+            )}
           </main>
         </div>
       )}

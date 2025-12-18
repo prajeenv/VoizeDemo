@@ -12,7 +12,8 @@
       "Bash(findstr:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dir /s /b \"c:\\\\Wordspace\\\\Voize demo\")"
     ]
   }
 }

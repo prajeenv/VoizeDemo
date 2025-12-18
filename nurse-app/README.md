@@ -24,6 +24,14 @@ A demo application showcasing voice recording and speech-to-text functionality f
 - ✅ Error handling and user feedback
 - ✅ Medical pattern detection (vitals, medications, assessments)
 
+### Intelligent Parser (NEW in Step 5)
+- ✅ **Advanced Pattern Matching** - 10+ patterns per data type
+- ✅ **Medical Dictionary** - 100+ medical terms and abbreviations
+- ✅ **Natural Language Numbers** - "ninety eight" → 98, "one twenty" → 120
+- ✅ **Confidence Scoring** - Per-field confidence with color coding
+- ✅ **Quality Assurance** - Automatic review flagging for low confidence
+- ✅ **Interactive Demo** - Test parser with example transcripts
+
 ### Workflow Templates (NEW in Step 4)
 - ✅ **Patient Assessment** - LOC, mobility, pain, skin condition
 - ✅ **Vital Signs** - BP, HR, temp, RR, SpO2 with auto-fill
@@ -50,12 +58,13 @@ A demo application showcasing voice recording and speech-to-text functionality f
 nurse-app/
 ├── src/
 │   ├── components/
-│   │   ├── WorkflowContainer.tsx     # Main workflow integration (NEW)
-│   │   ├── WorkflowSelector.tsx      # Workflow selection UI (NEW)
+│   │   ├── WorkflowContainer.tsx     # Main workflow integration
+│   │   ├── WorkflowSelector.tsx      # Workflow selection UI
 │   │   ├── VoiceRecordingDemo.tsx    # Demo component with full UI
+│   │   ├── ParserDemo.tsx            # Parser testing demo (NEW Step 5)
 │   │   ├── MicrophoneTest.tsx        # Diagnostics tool
 │   │   └── ...
-│   ├── workflows/                    # Workflow templates (NEW)
+│   ├── workflows/                    # Workflow templates
 │   │   ├── WorkflowBase.tsx          # Shared components & utilities
 │   │   ├── transcriptParser.ts       # Voice parsing utilities
 │   │   ├── PatientAssessment.tsx     # Patient assessment workflow
@@ -67,7 +76,8 @@ nurse-app/
 │   ├── hooks/
 │   │   └── useVoiceRecording.ts      # React hook for voice recording
 │   ├── services/
-│   │   └── voiceService.ts           # Core Web Speech API service
+│   │   ├── voiceService.ts           # Core Web Speech API service
+│   │   └── parseService.ts           # Intelligent parser (NEW Step 5)
 │   ├── utils/
 │   │   ├── medicalVocabulary.ts      # Medical term processing
 │   │   └── browserCompatibility.ts   # Browser detection utilities
@@ -109,6 +119,16 @@ nurse-app/
 - Workflow selector with 5 documentation types
 - Comprehensive transcript parsing utilities
 - Structured data extraction
+
+### ✅ STEP 5: Intelligent Parser Service (NEW)
+- Advanced NLP-based transcript parsing
+- Medical terminology dictionary (100+ terms)
+- Text-to-number conversion ("ninety eight" → 98)
+- Confidence scoring for all extracted fields
+- Automatic quality assurance with review flagging
+- Support for multiple workflow types
+- Interactive parser demo component
+- 10+ parsing patterns per data type
 
 ## Quick Start
 
