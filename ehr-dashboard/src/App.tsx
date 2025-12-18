@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react'
-
 function App() {
   return (
     <div className="min-h-screen bg-background">
@@ -10,8 +8,9 @@ function App() {
         </header>
 
         <main>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <p className="text-gray-700">EHR Dashboard - Ready for development</p>
+          <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+            <p className="text-gray-700 text-lg">EHR Dashboard - Ready for development</p>
+            <p className="text-gray-500 text-sm mt-2">Will display nursing notes sent from the Nurse App</p>
           </div>
         </main>
       </div>

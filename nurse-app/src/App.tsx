@@ -1,3 +1,5 @@
+import { VoiceRecordingDemo } from './components/VoiceRecordingDemo'
+
 function App() {
   return (
     <div className="min-h-screen bg-background">
@@ -8,9 +10,7 @@ function App() {
         </header>
 
         <main>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <p className="text-gray-700">Nurse App - Ready for development</p>
-          </div>
+          <VoiceRecordingDemo />
         </main>
       </div>
     </div>

@@ -1,73 +1,246 @@
-# React + TypeScript + Vite
+# Voize Nurse Documentation App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Voice-to-text nursing workflow assistant built with React, TypeScript, and Vite.
 
-Currently, two official plugins are available:
+## Project Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+A demo application showcasing voice recording and speech-to-text functionality for nursing documentation workflows. The system supports real-time transcription optimized for medical terminology.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- ✅ Real-time voice-to-text transcription
+- ✅ Browser compatibility detection (Chrome, Edge, Safari)
+- ✅ Comprehensive TypeScript type system with medical standards
+- ✅ Pause/Resume recording functionality
+- ✅ Error handling and user feedback
+- ✅ Medical workflow types (LOINC, FHIR, HL7 compliant)
+- ✅ Responsive UI with Tailwind CSS
 
-## Expanding the ESLint configuration
+## Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+nurse-app/
+├── src/
+│   ├── components/
+│   │   └── VoiceRecordingDemo.tsx    # Demo component with full UI
+│   ├── hooks/
+│   │   └── useVoiceRecording.ts      # React hook for voice recording
+│   ├── services/
+│   │   └── voiceService.ts           # Core Web Speech API service
+│   ├── types/
+│   │   ├── shared.ts                 # Medical types (LOINC, FHIR, etc.)
+│   │   └── speech-recognition.d.ts   # Web Speech API types
+│   ├── utils/
+│   │   └── browserCompatibility.ts   # Browser detection utilities
+│   └── App.tsx                       # Main app component
+├── VOICE_SERVICE_README.md           # Voice service documentation
+└── README.md                         # This file
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Development Progress
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### ✅ STEP 1: Project Setup & Architecture
+- React + TypeScript + Vite
+- Tailwind CSS configuration
+- Project structure
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### ✅ STEP 2: Shared Types & Data Models
+- Medical workflow types (8 types)
+- LOINC code integration
+- FHIR/HL7 compliant structures
+- Comprehensive TypeScript interfaces
+
+### ✅ STEP 3: Voice Recording & Speech-to-Text Service
+- Web Speech API integration
+- `voiceService.ts` - Core service class
+- `useVoiceRecording` - React hook
+- Browser compatibility utilities
+- Real-time transcription
+- Error handling
+- Pause/Resume functionality
+- Demo component with full UI
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Modern browser (Chrome 25+, Edge 79+, or Safari 14.1+)
+- HTTPS connection (or localhost for development)
+
+### Installation
+
+```bash
+cd nurse-app
+npm install
 ```
+
+### Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Voice Recording Usage
+
+### Basic Hook Usage
+
+```tsx
+import { useVoiceRecording } from './hooks/useVoiceRecording';
+
+function MyComponent() {
+  const {
+    isRecording,
+    currentTranscript,
+    startRecording,
+    stopRecording,
+  } = useVoiceRecording({
+    continuous: true,
+    interimResults: true,
+  });
+
+  return (
+    <div>
+      <button onClick={startRecording}>Start</button>
+      <button onClick={stopRecording}>Stop</button>
+      <p>{currentTranscript}</p>
+    </div>
+  );
+}
+```
+
+For detailed API documentation, see [VOICE_SERVICE_README.md](./VOICE_SERVICE_README.md)
+
+## Browser Support
+
+| Browser | Version | Voice Recording |
+|---------|---------|-----------------|
+| Chrome  | 25+     | ✅ Fully supported |
+| Edge    | 79+     | ✅ Fully supported |
+| Safari  | 14.1+   | ✅ Fully supported |
+| Firefox | All     | ❌ Not supported |
+
+## Technologies
+
+- **React 19** - UI framework
+- **TypeScript 5.6** - Type safety
+- **Vite 7** - Build tool & dev server
+- **Tailwind CSS 3** - Styling
+- **Web Speech API** - Voice recognition
+
+## Medical Standards Compliance
+
+The application includes TypeScript types for:
+- **LOINC Codes** - Laboratory observation identifiers
+- **FHIR** - Fast Healthcare Interoperability Resources
+- **HL7** - Health Level 7 standards
+- **8 Workflow Types** - Nursing documentation workflows
+
+## Configuration
+
+### Voice Service Configuration
+
+Edit [src/services/voiceService.ts:89-107](src/services/voiceService.ts#L89-L107) to customize:
+
+```typescript
+{
+  continuous: true,          // Keep listening after pauses
+  interimResults: true,      // Show real-time results
+  language: 'en-US',         // Recognition language
+  maxAlternatives: 1         // Number of alternatives
+}
+```
+
+### Tailwind Configuration
+
+Edit [tailwind.config.js](../tailwind.config.js) for theme customization.
+
+## Security Considerations
+
+1. **HTTPS Required** - Production must use HTTPS
+2. **Microphone Permission** - User consent required
+3. **Client-Side Processing** - All transcription happens in browser
+4. **No Server Storage** - Privacy-focused design
+
+## Troubleshooting
+
+### Microphone Permission Issues
+- Check browser permissions for the site
+- Ensure no other app is using the microphone
+- Try reloading the page
+
+### Poor Transcription Quality
+- Use a quality microphone
+- Reduce background noise
+- Speak clearly at moderate pace
+- Ensure stable internet connection
+
+### Browser Compatibility
+- Check [src/utils/browserCompatibility.ts:117](src/utils/browserCompatibility.ts#L117)
+- Test with demo component
+- Use supported browsers (Chrome, Edge, Safari)
+
+## Testing
+
+The [VoiceRecordingDemo](src/components/VoiceRecordingDemo.tsx) component provides:
+- Browser compatibility check
+- Full recording controls
+- Real-time transcript display
+- Final vs interim transcript separation
+- Error display
+- Usage instructions
+
+## Next Steps
+
+- [ ] Workflow selection UI
+- [ ] Note template system
+- [ ] Data persistence (localStorage/backend)
+- [ ] Export functionality
+- [ ] Integration with EHR Dashboard
+- [ ] Multi-language support
+
+## Documentation
+
+- [Voice Service API Documentation](./VOICE_SERVICE_README.md)
+- [Shared Types Documentation](../../SHARED_TYPES.md) (if exists)
+- [Web Speech API MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
+
+## Contributing
+
+This is a demo project. For production use:
+1. Add comprehensive error logging
+2. Implement backend integration
+3. Add user authentication
+4. Enhance medical terminology recognition
+5. Add data persistence layer
+
+## License
+
+Part of the Voize Demo project for nursing documentation.
+
+---
+
+## React + Vite Template Info
+
+This template uses:
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) - Babel for Fast Refresh
+
+For production applications, consider:
+- Type-aware ESLint rules
+- React Compiler (see Vite docs)
+- Additional React plugins
