@@ -37,6 +37,8 @@ export const VoiceRecordingDemo: React.FC = () => {
     continuous: true,
     interimResults: true,
     language: 'en-US',
+    maxAlternatives: 3,
+    enableMedicalProcessing: true,
     onTranscriptChange: (transcript, isFinal) => {
       console.log('Transcript update:', { transcript, isFinal });
     },
@@ -67,9 +69,9 @@ export const VoiceRecordingDemo: React.FC = () => {
     checkCompat();
   }, []);
 
-  const handleStartRecording = async () => {
+  const handleStartRecording = () => {
     resetError();
-    await startRecording();
+    startRecording();
   };
 
   const handleStopRecording = () => {
@@ -80,8 +82,8 @@ export const VoiceRecordingDemo: React.FC = () => {
     pauseRecording();
   };
 
-  const handleResumeRecording = async () => {
-    await resumeRecording();
+  const handleResumeRecording = () => {
+    resumeRecording();
   };
 
   const handleClearTranscript = () => {
@@ -106,13 +108,17 @@ export const VoiceRecordingDemo: React.FC = () => {
       <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Voice Recording Demo</h2>
         <p className="text-gray-600 mb-2">
-          Test the Web Speech API voice-to-text functionality
+          Test the Web Speech API voice-to-text functionality with medical optimization
         </p>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm mb-2">
           <span className="text-gray-500">Browser:</span>
           <span className="font-medium text-gray-700">
             {compatibility?.browserName} {compatibility?.browserVersion}
           </span>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+          <p className="text-blue-800 font-medium mb-1">Medical Optimization Enabled</p>
+          <p className="text-blue-700">Try saying: "BP 120 80" or "Your blood pressure is 120 over 80"</p>
         </div>
       </div>
 

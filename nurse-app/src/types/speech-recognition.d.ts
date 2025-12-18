@@ -13,11 +13,25 @@ interface SpeechRecognitionErrorEvent extends Event {
   readonly message: string;
 }
 
+interface SpeechGrammar {
+  src: string;
+  weight: number;
+}
+
+interface SpeechGrammarList {
+  readonly length: number;
+  item(index: number): SpeechGrammar;
+  addFromString(string: string, weight?: number): void;
+  addFromURI(src: string, weight?: number): void;
+  [index: number]: SpeechGrammar;
+}
+
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
   interimResults: boolean;
   lang: string;
   maxAlternatives: number;
+  grammars: SpeechGrammarList;
 
   start(): void;
   stop(): void;
@@ -64,7 +78,19 @@ declare var webkitSpeechRecognition: {
   new (): SpeechRecognition;
 };
 
+declare var SpeechGrammarList: {
+  prototype: SpeechGrammarList;
+  new (): SpeechGrammarList;
+};
+
+declare var webkitSpeechGrammarList: {
+  prototype: SpeechGrammarList;
+  new (): SpeechGrammarList;
+};
+
 interface Window {
   SpeechRecognition: typeof SpeechRecognition;
   webkitSpeechRecognition: typeof SpeechRecognition;
+  SpeechGrammarList: typeof SpeechGrammarList;
+  webkitSpeechGrammarList: typeof SpeechGrammarList;
 }

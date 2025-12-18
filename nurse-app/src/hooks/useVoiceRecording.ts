@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { voiceService } from '../services/voiceService';
+import { fixMedicalTranscript, createMedicalGrammarList } from '../utils/medicalVocabulary';
 import type {
   VoiceServiceConfig,
   VoiceRecognitionState,
@@ -18,13 +19,14 @@ export interface UseVoiceRecordingOptions extends VoiceServiceConfig {
   onStart?: () => void;
   onEnd?: () => void;
   autoInitialize?: boolean;
+  enableMedicalProcessing?: boolean; // Enable medical transcript post-processing
 }
 
 export interface UseVoiceRecordingReturn extends VoiceRecognitionState {
-  startRecording: () => Promise<void>;
+  startRecording: () => void;
   stopRecording: () => void;
   pauseRecording: () => void;
-  resumeRecording: () => Promise<void>;
+  resumeRecording: () => void;
   clearTranscript: () => void;
   resetError: () => void;
 }
@@ -54,12 +56,13 @@ export function useVoiceRecording(
     continuous = true,
     interimResults = true,
     language = 'en-US',
-    maxAlternatives = 1,
+    maxAlternatives = 3, // Request more alternatives for better accuracy
     onTranscriptChange,
     onError,
     onStart,
     onEnd,
     autoInitialize = true,
+    enableMedicalProcessing = true,
   } = options;
 
   const [state, setState] = useState<VoiceRecognitionState>({
@@ -79,13 +82,18 @@ export function useVoiceRecording(
   useEffect(() => {
     callbacksRef.current = {
       onTranscriptUpdate: (transcript: string, isFinal: boolean) => {
+        // Apply medical transcript fixes if enabled
+        const processedTranscript = enableMedicalProcessing
+          ? fixMedicalTranscript(transcript)
+          : transcript;
+
         setState((prev) => ({
           ...prev,
-          currentTranscript: transcript,
-          finalTranscript: isFinal ? transcript : prev.finalTranscript,
-          interimTranscript: isFinal ? '' : transcript.slice(prev.finalTranscript.length).trim(),
+          currentTranscript: processedTranscript,
+          finalTranscript: isFinal ? processedTranscript : prev.finalTranscript,
+          interimTranscript: isFinal ? '' : processedTranscript.slice(prev.finalTranscript.length).trim(),
         }));
-        onTranscriptChange?.(transcript, isFinal);
+        onTranscriptChange?.(processedTranscript, isFinal);
       },
       onStart: () => {
         setState((prev) => ({ ...prev, isRecording: true, isPaused: false, error: null }));
@@ -109,12 +117,15 @@ export function useVoiceRecording(
     }
 
     try {
+      const grammars = createMedicalGrammarList();
+
       voiceService.initialize(
         {
           continuous,
           interimResults,
           language,
           maxAlternatives,
+          grammars: grammars || undefined,
         },
         callbacksRef.current
       );
@@ -134,7 +145,7 @@ export function useVoiceRecording(
     };
   }, [continuous, interimResults, language, maxAlternatives, autoInitialize, state.isSupported]);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(() => {
     if (!state.isSupported) {
       const error: VoiceRecognitionError = {
         type: 'not-supported',
@@ -147,12 +158,15 @@ export function useVoiceRecording(
 
     if (!isInitializedRef.current) {
       try {
+        const grammars = createMedicalGrammarList();
+
         voiceService.initialize(
           {
             continuous,
             interimResults,
             language,
             maxAlternatives,
+            grammars: grammars || undefined,
           },
           callbacksRef.current
         );
@@ -167,7 +181,7 @@ export function useVoiceRecording(
     }
 
     try {
-      await voiceService.startRecording();
+      voiceService.startRecording();
     } catch (error) {
       setState((prev) => ({
         ...prev,
@@ -187,9 +201,9 @@ export function useVoiceRecording(
     setState((prev) => ({ ...prev, isPaused: true, isRecording: false }));
   }, []);
 
-  const resumeRecording = useCallback(async () => {
+  const resumeRecording = useCallback(() => {
     try {
-      await voiceService.resumeRecording();
+      voiceService.resumeRecording();
       setState((prev) => ({ ...prev, isPaused: false, isRecording: true }));
     } catch (error) {
       setState((prev) => ({
@@ -202,14 +216,20 @@ export function useVoiceRecording(
   }, []);
 
   const clearTranscript = useCallback(() => {
+    // Stop recording if active before clearing
+    if (state.isRecording) {
+      voiceService.stopRecording();
+    }
     voiceService.clearTranscripts();
     setState((prev) => ({
       ...prev,
       currentTranscript: '',
       finalTranscript: '',
       interimTranscript: '',
+      isRecording: false,
+      isPaused: false,
     }));
-  }, []);
+  }, [state.isRecording]);
 
   const resetError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));

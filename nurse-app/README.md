@@ -2,9 +2,18 @@
 
 Voice-to-text nursing workflow assistant built with React, TypeScript, and Vite.
 
+## 🎯 Recent Voice Recognition Improvements
+
+**Three critical issues fixed:**
+1. ✅ **"No speech detected" errors eliminated** - Auto-restart prevents timeout interruptions during natural pauses
+2. ✅ **Faster, more accurate transcription** - Intelligent selection from 3 alternatives with medical pattern detection
+3. ✅ **Correct medical numbers** - "BP 120 80" transcribes accurately instead of "BP 2018"
+
+📖 **See [VOICE_RECOGNITION_FIXES.md](VOICE_RECOGNITION_FIXES.md) for complete technical details**
+
 ## Project Overview
 
-A demo application showcasing voice recording and speech-to-text functionality for nursing documentation workflows. The system supports real-time transcription optimized for medical terminology.
+A demo application showcasing voice recording and speech-to-text functionality for nursing documentation workflows. The system supports real-time transcription optimized for medical terminology with post-processing fixes for common medical phrases.
 
 ## Features
 
@@ -180,9 +189,15 @@ Edit [tailwind.config.js](../tailwind.config.js) for theme customization.
 ## Troubleshooting
 
 ### Microphone Permission Issues
-- Check browser permissions for the site
+
+**For detailed troubleshooting, see [MICROPHONE_PERMISSIONS_GUIDE.md](./MICROPHONE_PERMISSIONS_GUIDE.md)**
+
+Quick fixes:
+- **Allow microphone access** when browser prompts
+- Click the **lock/camera icon** in address bar to manage permissions
 - Ensure no other app is using the microphone
-- Try reloading the page
+- Reload the page after granting permissions
+- Production requires **HTTPS** (localhost works with HTTP)
 
 ### Poor Transcription Quality
 - Use a quality microphone
@@ -217,6 +232,7 @@ The [VoiceRecordingDemo](src/components/VoiceRecordingDemo.tsx) component provid
 ## Documentation
 
 - [Voice Service API Documentation](./VOICE_SERVICE_README.md)
+- [Microphone Permissions Guide](./MICROPHONE_PERMISSIONS_GUIDE.md)
 - [Shared Types Documentation](../../SHARED_TYPES.md) (if exists)
 - [Web Speech API MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API)
 

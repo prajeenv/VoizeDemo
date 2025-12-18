@@ -9,6 +9,7 @@ export interface VoiceServiceConfig {
   interimResults?: boolean;
   language?: string;
   maxAlternatives?: number;
+  grammars?: SpeechGrammarList;
 }
 
 export interface VoiceRecognitionState {
@@ -53,6 +54,7 @@ class VoiceService {
   private recognition: SpeechRecognition | null = null;
   private isInitialized = false;
   private isPaused = false;
+  private isRecording = false;
   private finalTranscript = '';
   private interimTranscript = '';
   private callbacks: VoiceRecognitionCallbacks = {};
@@ -70,6 +72,25 @@ class VoiceService {
       (window as any).webkitSpeechRecognition;
 
     return !!SpeechRecognition;
+  }
+
+  /**
+   * Detect if a transcript contains medical numeric patterns
+   * Helps prioritize alternatives that contain vital signs, dosages, etc.
+   */
+  private isMedicalNumericPattern(transcript: string): boolean {
+    // Common medical numeric patterns
+    const patterns = [
+      /\b\d{2,3}\s*\/\s*\d{2,3}\b/i, // Blood pressure: 120/80
+      /\b\d{2,3}\s+\d{2,3}\b/, // Separated numbers: 120 80
+      /\b\d+\s*(mg|ml|mcg|units?|cc)\b/i, // Dosages: 10 mg
+      /\b\d+\.?\d*\s*degrees?\b/i, // Temperature: 98.6 degrees
+      /\b\d+\s*(bpm|beats)\b/i, // Heart rate: 72 bpm
+      /\bBP\s*\d/i, // BP followed by number
+      /\b(systolic|diastolic)\s*\d/i, // Systolic/Diastolic numbers
+    ];
+
+    return patterns.some(pattern => pattern.test(transcript));
   }
 
   /**
@@ -104,7 +125,12 @@ class VoiceService {
     recognition.continuous = config.continuous ?? true;
     recognition.interimResults = config.interimResults ?? true;
     recognition.lang = config.language ?? 'en-US';
-    recognition.maxAlternatives = config.maxAlternatives ?? 1;
+    recognition.maxAlternatives = config.maxAlternatives ?? 3; // Get more alternatives for better accuracy
+
+    // Add custom grammars if provided (for medical terminology and numbers)
+    if (config.grammars) {
+      recognition.grammars = config.grammars;
+    }
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -118,22 +144,14 @@ class VoiceService {
     if (!this.recognition) return;
 
     this.recognition.onstart = () => {
+      this.isRecording = true;
       this.isPaused = false;
       this.callbacks.onStart?.();
     };
 
     this.recognition.onend = () => {
-      // If not paused and was recording, restart (for continuous mode)
-      if (!this.isPaused && this.recognition && this.isInitialized) {
-        try {
-          // Don't auto-restart, let the user control it
-          this.callbacks.onEnd?.();
-        } catch (error) {
-          console.error('Recognition ended', error);
-        }
-      } else {
-        this.callbacks.onEnd?.();
-      }
+      this.isRecording = false;
+      this.callbacks.onEnd?.();
     };
 
     this.recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -141,12 +159,33 @@ class VoiceService {
       let final = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
+        const result = event.results[i];
 
-        if (event.results[i].isFinal) {
-          final += transcript + ' ';
+        // Try to find the best alternative, especially for medical terms and numbers
+        let bestTranscript = result[0].transcript;
+        let highestConfidence = result[0].confidence;
+
+        // Check all alternatives if available
+        for (let j = 0; j < result.length; j++) {
+          const alternative = result[j];
+
+          // Prefer alternatives that contain numeric patterns for vital signs
+          if (this.isMedicalNumericPattern(alternative.transcript)) {
+            bestTranscript = alternative.transcript;
+            break;
+          }
+
+          // Otherwise use highest confidence
+          if (alternative.confidence > highestConfidence) {
+            bestTranscript = alternative.transcript;
+            highestConfidence = alternative.confidence;
+          }
+        }
+
+        if (result.isFinal) {
+          final += bestTranscript + ' ';
         } else {
-          interim += transcript;
+          interim += bestTranscript;
         }
       }
 
@@ -162,6 +201,16 @@ class VoiceService {
     };
 
     this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      // Ignore 'no-speech' errors if we already have some transcript
+      // This prevents the common timeout issue when user pauses between words
+      if (event.error === 'no-speech' && this.finalTranscript.trim().length > 0) {
+        console.log('No speech detected but continuing (already have transcript)');
+        return;
+      }
+
+      // Reset recording state on error
+      this.isRecording = false;
+
       const error = this.handleRecognitionError(event);
       this.callbacks.onError?.(error);
     };
@@ -230,7 +279,7 @@ class VoiceService {
   /**
    * Start recording
    */
-  async startRecording(): Promise<void> {
+  startRecording(): void {
     if (!this.isInitialized) {
       throw new Error('VoiceService not initialized. Call initialize() first.');
     }
@@ -239,22 +288,22 @@ class VoiceService {
       throw new Error('Speech recognition not available');
     }
 
-    try {
-      // Request microphone permission
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Prevent starting if already recording
+    if (this.isRecording) {
+      console.warn('Speech recognition is already running');
+      return;
+    }
 
-      this.isPaused = false;
-      this.finalTranscript = '';
-      this.interimTranscript = '';
+    this.isPaused = false;
+
+    try {
+      // The error event handler will catch any permission or other errors
       this.recognition.start();
     } catch (error) {
-      const voiceError: VoiceRecognitionError = {
-        type: 'permission-denied',
-        message: 'Failed to access microphone. Please grant permission.',
-        originalError: error as Error,
-      };
-      this.callbacks.onError?.(voiceError);
-      throw voiceError;
+      // Handle the case where start() is called on already started recognition
+      console.error('Failed to start recognition:', error);
+      this.isRecording = false;
+      throw error;
     }
   }
 
@@ -264,8 +313,13 @@ class VoiceService {
   stopRecording(): void {
     if (!this.recognition) return;
 
+    if (!this.isRecording && !this.isPaused) {
+      console.warn('Speech recognition is not running');
+      return;
+    }
+
     this.isPaused = false;
-    this.isInitialized = false;
+    this.isRecording = false;
     this.recognition.stop();
   }
 
@@ -275,14 +329,20 @@ class VoiceService {
   pauseRecording(): void {
     if (!this.recognition) return;
 
+    if (!this.isRecording) {
+      console.warn('Cannot pause - speech recognition is not running');
+      return;
+    }
+
     this.isPaused = true;
+    this.isRecording = false;
     this.recognition.stop();
   }
 
   /**
    * Resume recording after pause
    */
-  async resumeRecording(): Promise<void> {
+  resumeRecording(): void {
     if (!this.recognition) {
       throw new Error('Speech recognition not available');
     }
@@ -292,17 +352,21 @@ class VoiceService {
       return;
     }
 
+    if (this.isRecording) {
+      console.warn('Speech recognition is already running');
+      return;
+    }
+
+    this.isPaused = false;
+
     try {
-      this.isPaused = false;
+      // The error event handler will catch any permission or other errors
       this.recognition.start();
     } catch (error) {
-      const voiceError: VoiceRecognitionError = {
-        type: 'unknown',
-        message: 'Failed to resume recording',
-        originalError: error as Error,
-      };
-      this.callbacks.onError?.(voiceError);
-      throw voiceError;
+      console.error('Failed to resume recognition:', error);
+      this.isRecording = false;
+      this.isPaused = false;
+      throw error;
     }
   }
 
@@ -340,10 +404,13 @@ class VoiceService {
    */
   destroy(): void {
     if (this.recognition) {
-      this.recognition.stop();
+      if (this.isRecording) {
+        this.recognition.stop();
+      }
       this.recognition = null;
     }
     this.isInitialized = false;
+    this.isRecording = false;
     this.isPaused = false;
     this.finalTranscript = '';
     this.interimTranscript = '';
