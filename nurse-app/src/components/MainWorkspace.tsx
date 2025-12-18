@@ -1,0 +1,304 @@
+/**
+ * Main Workspace Component
+ * Displays selected workflow with integrated voice recording controls
+ */
+
+import React, { useState, useEffect } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import type { WorkflowType } from './WorkflowSelector';
+import { PatientAssessment } from '../workflows/PatientAssessment';
+import { VitalSigns } from '../workflows/VitalSigns';
+import { MedicationAdministration } from '../workflows/MedicationAdministration';
+import { WoundCare } from '../workflows/WoundCare';
+import { ShiftHandoff } from '../workflows/ShiftHandoff';
+import type { DocumentationEntry } from '../../../shared/types';
+
+interface MainWorkspaceProps {
+  selectedWorkflow: WorkflowType | null;
+  onWorkflowComplete: () => void;
+}
+
+export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
+  selectedWorkflow,
+  onWorkflowComplete,
+}) => {
+  const { currentNurse, addEntry } = useApp();
+  const [editableTranscript, setEditableTranscript] = useState('');
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
+
+  const {
+    isRecording,
+    isPaused,
+    currentTranscript,
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording,
+    clearTranscript,
+    error,
+  } = useVoiceRecording({
+    continuous: true,
+    interimResults: true,
+    enableMedicalProcessing: true,
+  });
+
+  // Update editable transcript when voice transcript changes
+  useEffect(() => {
+    if (!isEditingTranscript) {
+      setEditableTranscript(currentTranscript);
+    }
+  }, [currentTranscript, isEditingTranscript]);
+
+  const handleWorkflowSubmit = (data: any) => {
+    // Create documentation entry
+    const entry: DocumentationEntry = {
+      id: `entry-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      nurseId: currentNurse.id,
+      nurseName: currentNurse.name,
+      patientId: data.patientId || 'unknown',
+      patientMRN: data.patientMRN,
+      patientName: data.patientName,
+      workflowType: selectedWorkflow!,
+      voiceTranscript: editableTranscript,
+      structuredData: data.structuredData || {},
+      status: 'completed',
+      lastModified: new Date().toISOString(),
+    };
+
+    // Add to state
+    addEntry(entry);
+
+    // Clear transcript and stop recording
+    stopRecording();
+    clearTranscript();
+    setEditableTranscript('');
+    setIsEditingTranscript(false);
+
+    // Notify parent
+    onWorkflowComplete();
+  };
+
+  const handleWorkflowCancel = () => {
+    if (isRecording) {
+      stopRecording();
+    }
+    clearTranscript();
+    setEditableTranscript('');
+    setIsEditingTranscript(false);
+    onWorkflowComplete();
+  };
+
+  const handleClearAll = () => {
+    if (confirm('Clear all data and transcript?')) {
+      stopRecording();
+      clearTranscript();
+      setEditableTranscript('');
+      setIsEditingTranscript(false);
+    }
+  };
+
+  const renderWorkflowForm = () => {
+    if (!selectedWorkflow) return null;
+
+    // Use editable transcript for the form
+    const transcriptToUse = editableTranscript || currentTranscript;
+
+    const commonProps = {
+      transcript: transcriptToUse,
+      isRecording,
+      onSubmit: handleWorkflowSubmit,
+      onCancel: handleWorkflowCancel,
+    };
+
+    switch (selectedWorkflow) {
+      case 'patient-assessment':
+        return <PatientAssessment {...commonProps} />;
+      case 'vital-signs':
+        return <VitalSigns {...commonProps} />;
+      case 'medication-administration':
+        return <MedicationAdministration {...commonProps} />;
+      case 'wound-care':
+        return <WoundCare {...commonProps} />;
+      case 'shift-handoff':
+        return <ShiftHandoff {...commonProps} />;
+      default:
+        return null;
+    }
+  };
+
+  if (!selectedWorkflow) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">👈</div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            Select a Workflow to Begin
+          </h3>
+          <p className="text-gray-600">
+            Choose a documentation type from the sidebar to start recording your notes
+          </p>
+          <div className="mt-6 grid grid-cols-2 gap-3 text-sm text-gray-700">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="font-semibold">Step 1</div>
+              <div className="text-xs">Select workflow</div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="font-semibold">Step 2</div>
+              <div className="text-xs">Click microphone</div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="font-semibold">Step 3</div>
+              <div className="text-xs">Speak clearly</div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="font-semibold">Step 4</div>
+              <div className="text-xs">Review & submit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Voice Controls Bar */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="p-4">
+          {/* Main Recording Controls */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">Voice Recording</h3>
+              {isRecording && (
+                <span className="flex items-center gap-2 text-red-600 font-medium animate-pulse">
+                  <span className="w-3 h-3 bg-red-600 rounded-full"></span>
+                  Recording...
+                </span>
+              )}
+              {isPaused && (
+                <span className="flex items-center gap-2 text-yellow-600 font-medium">
+                  <span className="w-3 h-3 bg-yellow-600 rounded-full"></span>
+                  Paused
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!isRecording && !isPaused && (
+                <button
+                  onClick={startRecording}
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Start Recording
+                </button>
+              )}
+
+              {isRecording && (
+                <>
+                  <button
+                    onClick={pauseRecording}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    ⏸ Pause
+                  </button>
+                  <button
+                    onClick={stopRecording}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
+                  >
+                    ⏹ Stop
+                  </button>
+                </>
+              )}
+
+              {isPaused && (
+                <>
+                  <button
+                    onClick={resumeRecording}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    ▶ Resume
+                  </button>
+                  <button
+                    onClick={stopRecording}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white rounded-lg font-medium transition-colors"
+                  >
+                    ⏹ Stop
+                  </button>
+                </>
+              )}
+
+              {(currentTranscript || editableTranscript) && (
+                <button
+                  onClick={handleClearAll}
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-red-600 text-lg">⚠️</span>
+                <div className="flex-1">
+                  <div className="font-semibold text-red-900">Error</div>
+                  <div className="text-sm text-red-800">{error.message}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Transcript Display */}
+          {(currentTranscript || editableTranscript) && (
+            <div className="bg-gray-50 border border-gray-300 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-gray-900 text-sm">Voice Transcript</h4>
+                <button
+                  onClick={() => setIsEditingTranscript(!isEditingTranscript)}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {isEditingTranscript ? '✓ Done Editing' : '✏️ Edit Transcript'}
+                </button>
+              </div>
+
+              {isEditingTranscript ? (
+                <textarea
+                  value={editableTranscript}
+                  onChange={(e) => setEditableTranscript(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  rows={4}
+                  placeholder="Edit your transcript here..."
+                />
+              ) : (
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {editableTranscript || currentTranscript || 'No transcript yet...'}
+                </p>
+              )}
+
+              <div className="mt-2 text-xs text-gray-600">
+                {editableTranscript.length || currentTranscript.length} characters
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Workflow Form */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {renderWorkflowForm()}
+      </div>
+    </div>
+  );
+};

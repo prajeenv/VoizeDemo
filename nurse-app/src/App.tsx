@@ -1,45 +1,29 @@
 import { useState } from 'react'
-import { WorkflowContainer } from './components/WorkflowContainer'
+import { AppProvider } from './contexts/AppContext'
+import { AppHeader } from './components/AppHeader'
+import { WorkflowSidebar } from './components/WorkflowSidebar'
+import { MainWorkspace } from './components/MainWorkspace'
+import { RecentEntriesPanel } from './components/RecentEntriesPanel'
 import { VoiceRecordingDemo } from './components/VoiceRecordingDemo'
 import { MicrophoneTest } from './components/MicrophoneTest'
 import ParserDemo from './components/ParserDemo'
+import type { WorkflowType } from './components/WorkflowSelector'
 
-type ViewMode = 'workflows' | 'demo' | 'diagnostics' | 'parser'
+type ViewMode = 'main' | 'demo' | 'diagnostics' | 'parser'
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('workflows')
+  const [viewMode, setViewMode] = useState<ViewMode>('main')
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowType | null>(null)
 
-  return (
-    <div className="min-h-screen bg-background">
-      {viewMode === 'workflows' ? (
-        <div>
-          <div className="bg-white border-b border-gray-200 shadow-sm">
-            <div className="container mx-auto px-4 py-3">
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={() => setViewMode('parser')}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-sm"
-                >
-                  Parser Demo
-                </button>
-                <button
-                  onClick={() => setViewMode('demo')}
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors text-sm"
-                >
-                  Voice Demo
-                </button>
-                <button
-                  onClick={() => setViewMode('diagnostics')}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm"
-                >
-                  Diagnostics
-                </button>
-              </div>
-            </div>
-          </div>
-          <WorkflowContainer />
-        </div>
-      ) : (
+  const handleWorkflowComplete = () => {
+    // Reset to workflow selection
+    setSelectedWorkflow(null)
+  }
+
+  // Demo/Diagnostics View
+  if (viewMode !== 'main') {
+    return (
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto p-4">
           <header className="mb-8">
             <div className="flex items-center justify-between">
@@ -49,10 +33,10 @@ function App() {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => setViewMode('workflows')}
+                  onClick={() => setViewMode('main')}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                 >
-                  ← Back to Workflows
+                  ← Back to Main App
                 </button>
                 <button
                   onClick={() => setViewMode('parser')}
@@ -98,8 +82,65 @@ function App() {
             )}
           </main>
         </div>
-      )}
-    </div>
+      </div>
+    )
+  }
+
+  // Main Application View
+  return (
+    <AppProvider>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header */}
+        <AppHeader />
+
+        {/* Demo Mode Toggle (Top-right corner) */}
+        <div className="absolute top-2 right-4 z-50 flex gap-2">
+          <button
+            onClick={() => setViewMode('parser')}
+            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-xs shadow-lg"
+            title="Parser Demo"
+          >
+            Parser Demo
+          </button>
+          <button
+            onClick={() => setViewMode('demo')}
+            className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors text-xs shadow-lg"
+            title="Voice Recording Demo"
+          >
+            Voice Demo
+          </button>
+          <button
+            onClick={() => setViewMode('diagnostics')}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-xs shadow-lg"
+            title="Microphone Diagnostics"
+          >
+            Diagnostics
+          </button>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - Workflow Selection */}
+          <WorkflowSidebar
+            selectedWorkflow={selectedWorkflow}
+            onSelectWorkflow={setSelectedWorkflow}
+          />
+
+          {/* Main Workspace */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <MainWorkspace
+              selectedWorkflow={selectedWorkflow}
+              onWorkflowComplete={handleWorkflowComplete}
+            />
+          </div>
+
+          {/* Right Panel - Recent Entries */}
+          <div className="w-96 bg-gray-50 border-l border-gray-200 overflow-y-auto p-4">
+            <RecentEntriesPanel />
+          </div>
+        </div>
+      </div>
+    </AppProvider>
   )
 }
 
