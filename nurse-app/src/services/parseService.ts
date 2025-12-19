@@ -17,9 +17,6 @@ import type {
   Medication,
   MedicationRoute,
   Assessment,
-  WoundDetails,
-  WoundType,
-  WoundStage,
   LevelOfConsciousness,
 } from '../../../shared/types';
 
@@ -311,7 +308,6 @@ function standardizeMedicationName(name: string): string {
 function parseVitalSigns(transcript: string): { data: Partial<VitalSigns>; confidence: Record<string, number> } {
   const data: Partial<VitalSigns> = {};
   const confidence: Record<string, number> = {};
-  const text = transcript.toLowerCase();
 
   // Blood Pressure patterns
   // "BP one twenty over eighty" -> 120/80
@@ -497,7 +493,6 @@ function parseMedication(transcript: string): { data: Partial<Medication>[]; con
 
       if (pattern === medPatterns[0]) {
         // Full pattern with patient name
-        const patientName = match[1];
         const dose = match[2];
         const unit = match[3];
         const medName = match[4];
@@ -560,7 +555,6 @@ function parseMedication(transcript: string): { data: Partial<Medication>[]; con
 function parseAssessment(transcript: string): { data: Partial<Assessment>; confidence: Record<string, number> } {
   const data: Partial<Assessment> = {};
   const confidence: Record<string, number> = {};
-  const text = transcript.toLowerCase();
 
   // Level of Consciousness
   // "patient alert and oriented times three" -> alert, oriented x3
@@ -667,7 +661,9 @@ export function parseTranscript(
 
     case 'medication-administration': {
       const medications = parseMedication(transcript);
-      structuredData.medications = medications.data;
+      structuredData.medications = medications.data.filter((med): med is Medication =>
+        !!med.name && !!med.dose && !!med.route
+      );
       Object.assign(confidence, medications.confidence);
 
       // Flag if route or time couldn't be extracted with high confidence
@@ -716,8 +712,11 @@ export function parseTranscript(
       }
 
       const medications = parseMedication(transcript);
-      if (medications.data.length > 0) {
-        structuredData.medications = medications.data;
+      const validMedications = medications.data.filter((med): med is Medication =>
+        !!med.name && !!med.dose && !!med.route
+      );
+      if (validMedications.length > 0) {
+        structuredData.medications = validMedications;
         Object.assign(confidence, medications.confidence);
       }
 

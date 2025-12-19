@@ -3,7 +3,7 @@
  * Interactive demo for testing the intelligent transcript parser
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { parseTranscript } from '../services/parseService';
 import type { WorkflowType } from '../../../shared/types';
 

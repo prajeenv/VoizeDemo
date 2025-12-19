@@ -12,6 +12,7 @@ import { VitalSigns } from '../workflows/VitalSigns';
 import { MedicationAdministration } from '../workflows/MedicationAdministration';
 import { WoundCare } from '../workflows/WoundCare';
 import { ShiftHandoff } from '../workflows/ShiftHandoff';
+import { PatientSelector } from './PatientSelector';
 import type { DocumentationEntry } from '../../../shared/types';
 
 interface MainWorkspaceProps {
@@ -23,7 +24,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
   selectedWorkflow,
   onWorkflowComplete,
 }) => {
-  const { currentNurse, addEntry } = useApp();
+  const { currentNurse, selectedPatient, addEntry } = useApp();
   const [editableTranscript, setEditableTranscript] = useState('');
   const [isEditingTranscript, setIsEditingTranscript] = useState(false);
 
@@ -51,18 +52,24 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
   }, [currentTranscript, isEditingTranscript]);
 
   const handleWorkflowSubmit = (data: any) => {
+    // Ensure patient is selected
+    if (!selectedPatient) {
+      alert('Please select a patient before submitting.');
+      return;
+    }
+
     // Create documentation entry
     const entry: DocumentationEntry = {
       id: `entry-${Date.now()}`,
       timestamp: new Date().toISOString(),
       nurseId: currentNurse.id,
       nurseName: currentNurse.name,
-      patientId: data.patientId || 'unknown',
-      patientMRN: data.patientMRN,
-      patientName: data.patientName,
+      patientId: selectedPatient.id,
+      patientMRN: selectedPatient.mrn,
+      patientName: selectedPatient.name,
       workflowType: selectedWorkflow!,
       voiceTranscript: editableTranscript,
-      structuredData: data.structuredData || {},
+      structuredData: data.structuredData || data,
       status: 'completed',
       lastModified: new Date().toISOString(),
     };
@@ -164,6 +171,9 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Patient Selector */}
+      <PatientSelector />
+
       {/* Voice Controls Bar */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="p-4">

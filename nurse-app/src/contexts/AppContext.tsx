@@ -4,11 +4,18 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { DocumentationEntry, Nurse } from '../../../shared/types';
+import type { DocumentationEntry, Nurse, Patient } from '../../../shared/types';
+import { mockPatients } from '../data/mockPatients';
 
 export interface AppState {
   // Current nurse information
   currentNurse: Nurse;
+
+  // All patients
+  patients: Patient[];
+
+  // Currently selected patient
+  selectedPatient: Patient | null;
 
   // All documentation entries
   entries: DocumentationEntry[];
@@ -28,6 +35,7 @@ export interface AppContextValue extends AppState {
   deleteEntry: (id: string) => void;
   sendToEHR: (id: string) => void;
   selectEntry: (entry: DocumentationEntry | null) => void;
+  selectPatient: (patient: Patient | null) => void;
 
   // Getters
   getRecentEntries: (limit?: number) => DocumentationEntry[];
@@ -54,6 +62,8 @@ const MOCK_NURSE: Nurse = {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentNurse] = useState<Nurse>(MOCK_NURSE);
+  const [patients] = useState<Patient[]>(mockPatients);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(mockPatients[0]);
   const [entries, setEntries] = useState<DocumentationEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<DocumentationEntry | null>(null);
 
@@ -110,7 +120,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const sendToEHR = useCallback((id: string) => {
     const entry = entries.find((e) => e.id === id);
-    if (!entry) return;
+    if (!entry) {
+      console.error('Entry not found:', id);
+      return;
+    }
 
     // Update entry status
     const updatedEntry: DocumentationEntry = {
@@ -130,16 +143,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       entry: updatedEntry,
     };
 
+    console.log('📤 Sending to EHR:', ehrMessage);
     localStorage.setItem('voize_ehr_new_entry', JSON.stringify(ehrMessage));
 
     // Broadcast event for same-tab communication
     window.dispatchEvent(
       new CustomEvent('voize:ehr-entry', { detail: ehrMessage })
     );
+    console.log('✅ Sent to EHR successfully');
   }, [entries]);
 
   const selectEntry = useCallback((entry: DocumentationEntry | null) => {
     setSelectedEntry(entry);
+  }, []);
+
+  const selectPatient = useCallback((patient: Patient | null) => {
+    setSelectedPatient(patient);
   }, []);
 
   const getRecentEntries = useCallback(
@@ -164,6 +183,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value: AppContextValue = {
     currentNurse,
+    patients,
+    selectedPatient,
     entries,
     selectedEntry,
     entriesCompletedToday,
@@ -173,6 +194,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     deleteEntry,
     sendToEHR,
     selectEntry,
+    selectPatient,
     getRecentEntries,
     getTodayEntries,
   };
