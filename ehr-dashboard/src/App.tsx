@@ -2,13 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Patient, DocumentationEntry } from '../../shared/types';
 import { mockPatients, mockDocumentationEntries } from './data/mockPatients';
 import { toFHIRFormat, toHL7Format, toCSVFormat, downloadAsFile } from './utils/exportFormats';
+import * as storageService from '../../shared/services/storageService';
 
 type ExportFormat = 'human' | 'fhir' | 'hl7' | 'csv';
 
 function App() {
   const [patients] = useState<Patient[]>(mockPatients);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(patients[0]);
-  const [allEntries, setAllEntries] = useState<DocumentationEntry[]>(mockDocumentationEntries);
+  const [allEntries, setAllEntries] = useState<DocumentationEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<DocumentationEntry | null>(null);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('human');
   const [newEntryNotification, setNewEntryNotification] = useState<DocumentationEntry | null>(null);
@@ -36,50 +37,38 @@ function App() {
     setUnreadCounts(counts);
   }, [patients]);
 
+  // Load all entries from storageService on mount
+  useEffect(() => {
+    console.log('🔊 EHR Dashboard: Loading entries from storageService');
+    const result = storageService.getAllEHREntries();
+
+    if (result.success && result.data) {
+      console.log('✅ Loaded', result.data.length, 'entries');
+      setAllEntries(result.data);
+    } else if (result.error) {
+      console.error('❌ Failed to load entries:', result.error.message);
+      // Fall back to mock data if storage is empty
+      setAllEntries(mockDocumentationEntries);
+    } else {
+      // No entries in storage, use mock data
+      setAllEntries(mockDocumentationEntries);
+    }
+  }, []);
+
   useEffect(() => {
     calculateUnreadCounts(allEntries);
   }, [allEntries, calculateUnreadCounts]);
 
-  // Listen for new entries from Nurse App via localStorage
+  // Subscribe to new entries from Nurse App via storageService
   useEffect(() => {
-    console.log('🔊 EHR Dashboard: Setting up event listeners');
+    console.log('🔊 EHR Dashboard: Subscribing to new entries');
 
-    const handleNewEntry = (event: StorageEvent) => {
-      console.log('📥 Storage event received:', event.key, event.newValue);
-      if (event.key === 'voize_ehr_new_entry' && event.newValue) {
-        try {
-          const message = JSON.parse(event.newValue);
-          const newEntry: DocumentationEntry = message.entry;
-          console.log('✅ Parsed new entry:', newEntry);
+    const unsubscribe = storageService.subscribeToNewEntries((newEntry) => {
+      console.log('📥 New entry received:', newEntry);
 
-          // Add to entries
-          setAllEntries((prev) => {
-            // Avoid duplicates
-            if (prev.some((e) => e.id === newEntry.id)) {
-              console.log('⚠️ Duplicate entry detected, skipping');
-              return prev;
-            }
-            console.log('✅ Adding new entry to list');
-            return [newEntry, ...prev];
-          });
-
-          // Show notification
-          setNewEntryNotification(newEntry);
-          setTimeout(() => setNewEntryNotification(null), 5000);
-        } catch (error) {
-          console.error('❌ Failed to parse new entry:', error);
-        }
-      }
-    };
-
-    // Also listen for custom events (same-tab communication)
-    const handleCustomEvent = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const message = customEvent.detail;
-      const newEntry: DocumentationEntry = message.entry;
-      console.log('📥 Custom event received:', newEntry);
-
+      // Add to entries
       setAllEntries((prev) => {
+        // Avoid duplicates
         if (prev.some((e) => e.id === newEntry.id)) {
           console.log('⚠️ Duplicate entry detected, skipping');
           return prev;
@@ -88,18 +77,16 @@ function App() {
         return [newEntry, ...prev];
       });
 
+      // Show notification
       setNewEntryNotification(newEntry);
       setTimeout(() => setNewEntryNotification(null), 5000);
-    };
+    });
 
-    window.addEventListener('storage', handleNewEntry);
-    window.addEventListener('voize:ehr-entry', handleCustomEvent);
-    console.log('✅ Event listeners registered');
+    console.log('✅ Subscription active');
 
     return () => {
-      window.removeEventListener('storage', handleNewEntry);
-      window.removeEventListener('voize:ehr-entry', handleCustomEvent);
-      console.log('🔇 Event listeners removed');
+      unsubscribe();
+      console.log('🔇 Unsubscribed from new entries');
     };
   }, []);
 

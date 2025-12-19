@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { DocumentationEntry, Nurse, Patient } from '../../../shared/types';
 import { mockPatients } from '../data/mockPatients';
+import * as storageService from '../../../shared/services/storageService';
 
 export interface AppState {
   // Current nurse information
@@ -44,12 +45,6 @@ export interface AppContextValue extends AppState {
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-// Storage keys
-const STORAGE_KEYS = {
-  ENTRIES: 'voize_nurse_entries',
-  CURRENT_NURSE: 'voize_current_nurse',
-};
-
 // Mock current nurse (in production, this would come from authentication)
 const MOCK_NURSE: Nurse = {
   id: 'nurse-001',
@@ -67,63 +62,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [entries, setEntries] = useState<DocumentationEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<DocumentationEntry | null>(null);
 
-  // Load entries from localStorage on mount
+  // Load entries from storageService on mount
   useEffect(() => {
-    const storedEntries = localStorage.getItem(STORAGE_KEYS.ENTRIES);
-    if (storedEntries) {
-      try {
-        setEntries(JSON.parse(storedEntries));
-      } catch (error) {
-        console.error('Failed to load entries from localStorage:', error);
-      }
+    const result = storageService.getLocalEntries();
+    if (result.success && result.data) {
+      setEntries(result.data);
+    } else if (result.error) {
+      console.error('Failed to load entries:', result.error.message);
     }
   }, []);
 
-  // Save entries to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(entries));
-  }, [entries]);
-
-  // Listen for entries sent to EHR (from other tabs or windows)
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'voize_ehr_new_entry') {
-        // EHR received a new entry, we could show a notification
-        console.log('Entry sent to EHR:', event.newValue);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
   const addEntry = useCallback((entry: DocumentationEntry) => {
+    // Add to local state
     setEntries((prev) => [entry, ...prev]);
+
+    // Save to storageService
+    const result = storageService.sendToEHR(entry);
+    if (!result.success && result.error) {
+      console.error('Failed to save entry:', result.error.message);
+    }
   }, []);
 
   const updateEntry = useCallback((id: string, updates: Partial<DocumentationEntry>) => {
+    const updatedEntry = entries.find((e) => e.id === id);
+    if (!updatedEntry) return;
+
+    const newEntry = {
+      ...updatedEntry,
+      ...updates,
+      lastModified: new Date().toISOString()
+    };
+
+    // Update local state
     setEntries((prev) =>
-      prev.map((entry) =>
-        entry.id === id
-          ? { ...entry, ...updates, lastModified: new Date().toISOString() }
-          : entry
-      )
+      prev.map((entry) => (entry.id === id ? newEntry : entry))
     );
-  }, []);
+
+    // Update in storageService
+    const result = storageService.updateEntry(newEntry);
+    if (!result.success && result.error) {
+      console.error('Failed to update entry:', result.error.message);
+    }
+  }, [entries]);
 
   const deleteEntry = useCallback((id: string) => {
+    // Remove from local state
     setEntries((prev) => prev.filter((entry) => entry.id !== id));
+
+    // Clear selection if deleted
     if (selectedEntry?.id === id) {
       setSelectedEntry(null);
+    }
+
+    // Delete from storageService
+    const result = storageService.deleteEntry(id);
+    if (!result.success && result.error) {
+      console.error('Failed to delete entry:', result.error.message);
     }
   }, [selectedEntry]);
 
   const sendToEHR = useCallback((id: string) => {
     const entry = entries.find((e) => e.id === id);
     if (!entry) {
-      console.error('Entry not found:', id);
+      console.error('❌ Entry not found:', id);
       return;
     }
+
+    console.log('📤 [NURSE APP] Preparing to send entry to EHR:', {
+      id: entry.id,
+      patientName: entry.patientName,
+      workflowType: entry.workflowType
+    });
 
     // Update entry status
     const updatedEntry: DocumentationEntry = {
@@ -132,25 +141,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       sentToEHRAt: new Date().toISOString(),
     };
 
+    // Update local state
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? updatedEntry : e))
     );
 
-    // Send to EHR via localStorage (simulating cross-app communication)
-    const ehrMessage = {
-      messageId: `msg-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      entry: updatedEntry,
-    };
+    // Send to EHR via storageService
+    console.log('📤 [NURSE APP] Calling storageService.sendToEHR...');
+    const result = storageService.sendToEHR(updatedEntry);
 
-    console.log('📤 Sending to EHR:', ehrMessage);
-    localStorage.setItem('voize_ehr_new_entry', JSON.stringify(ehrMessage));
-
-    // Broadcast event for same-tab communication
-    window.dispatchEvent(
-      new CustomEvent('voize:ehr-entry', { detail: ehrMessage })
-    );
-    console.log('✅ Sent to EHR successfully');
+    if (result.success) {
+      console.log('✅ [NURSE APP] Sent to EHR successfully!');
+      console.log('📊 [NURSE APP] Entry data sent:', updatedEntry);
+    } else if (result.error) {
+      console.error('❌ [NURSE APP] Failed to send to EHR:', result.error.message);
+    }
   }, [entries]);
 
   const selectEntry = useCallback((entry: DocumentationEntry | null) => {

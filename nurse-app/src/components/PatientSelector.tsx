@@ -5,7 +5,6 @@
 
 import React from 'react';
 import { useApp } from '../contexts/AppContext';
-import type { Patient } from '../../../shared/types';
 
 export const PatientSelector: React.FC = () => {
   const { patients, selectedPatient, selectPatient } = useApp();
