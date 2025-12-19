@@ -3,6 +3,7 @@ import type { Patient, DocumentationEntry } from '../../shared/types';
 import { mockPatients, mockDocumentationEntries } from './data/mockPatients';
 import { toFHIRFormat, toHL7Format, toCSVFormat, downloadAsFile } from './utils/exportFormats';
 import * as storageService from '../../shared/services/storageService';
+import { getCompleteDemoData } from '../../shared/mockData';
 
 type ExportFormat = 'human' | 'fhir' | 'hl7' | 'csv';
 
@@ -42,18 +43,46 @@ function App() {
     console.log('🔊 EHR Dashboard: Loading entries from storageService');
     const result = storageService.getAllEHREntries();
 
-    if (result.success && result.data) {
-      console.log('✅ Loaded', result.data.length, 'entries');
+    if (result.success && result.data && result.data.length > 0) {
+      console.log('✅ Loaded', result.data.length, 'entries from storage');
       setAllEntries(result.data);
-    } else if (result.error) {
-      console.error('❌ Failed to load entries:', result.error.message);
-      // Fall back to mock data if storage is empty
-      setAllEntries(mockDocumentationEntries);
     } else {
-      // No entries in storage, use mock data
-      setAllEntries(mockDocumentationEntries);
+      console.log('📦 Loading demo data from mockData service');
+      // Try to load demo data from localStorage first
+      const demoNotesJson = localStorage.getItem('voize_demo_notes');
+
+      if (demoNotesJson) {
+        try {
+          const demoNotes = JSON.parse(demoNotesJson);
+          // Convert to DocumentationEntry format
+          const convertedEntries: DocumentationEntry[] = demoNotes.map((note: any) => ({
+            id: note.id,
+            timestamp: note.timestamp,
+            nurseId: note.nurseName.toLowerCase().replace(/\s+/g, '-'),
+            nurseName: note.nurseName,
+            patientId: note.patientId,
+            patientMRN: note.patientId,
+            patientName: patients.find(p => p.mrn === note.patientId)?.name || 'Unknown',
+            workflowType: note.workflowType,
+            voiceTranscript: note.rawTranscript,
+            structuredData: note.structuredData || {},
+            status: 'sent_to_ehr',
+            sentToEHRAt: note.updatedAt,
+            transcriptConfidence: note.confidence
+          }));
+          console.log('✅ Loaded', convertedEntries.length, 'demo entries from localStorage');
+          setAllEntries(convertedEntries);
+        } catch (error) {
+          console.error('❌ Failed to parse demo notes:', error);
+          setAllEntries(mockDocumentationEntries);
+        }
+      } else {
+        // Fall back to default mock data
+        console.log('📋 Using default mock documentation entries');
+        setAllEntries(mockDocumentationEntries);
+      }
     }
-  }, []);
+  }, [patients]);
 
   useEffect(() => {
     calculateUnreadCounts(allEntries);
