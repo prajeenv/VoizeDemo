@@ -3,7 +3,7 @@ import type { Patient, DocumentationEntry } from '../../shared/types';
 import { mockPatients, mockDocumentationEntries } from './data/mockPatients';
 import { toFHIRFormat, toHL7Format, toCSVFormat, downloadAsFile } from './utils/exportFormats';
 import * as storageService from '../../shared/services/storageService';
-import { getCompleteDemoData } from '../../shared/mockData';
+import SearchFilter, { type SearchFilterOptions } from './components/SearchFilter';
 
 type ExportFormat = 'human' | 'fhir' | 'hl7' | 'csv';
 
@@ -15,6 +15,12 @@ function App() {
   const [exportFormat, setExportFormat] = useState<ExportFormat>('human');
   const [newEntryNotification, setNewEntryNotification] = useState<DocumentationEntry | null>(null);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [searchFilters, setSearchFilters] = useState<SearchFilterOptions>({
+    searchText: '',
+    workflowType: 'all',
+    dateRange: 'all',
+    nurseName: '',
+  });
 
   // Get current time for header
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -119,9 +125,71 @@ function App() {
     };
   }, []);
 
-  // Get entries for selected patient
+  // Filter entries based on search criteria
+  const filterEntries = useCallback(
+    (entries: DocumentationEntry[]): DocumentationEntry[] => {
+      return entries.filter((entry) => {
+        // Text search - search in patient name, nurse name, and transcript
+        if (searchFilters.searchText) {
+          const searchLower = searchFilters.searchText.toLowerCase();
+          const matchesPatient = entry.patientName?.toLowerCase().includes(searchLower);
+          const matchesNurse = entry.nurseName?.toLowerCase().includes(searchLower);
+          const matchesTranscript = entry.voiceTranscript?.toLowerCase().includes(searchLower);
+          const matchesMRN = entry.patientMRN?.toLowerCase().includes(searchLower);
+
+          if (!matchesPatient && !matchesNurse && !matchesTranscript && !matchesMRN) {
+            return false;
+          }
+        }
+
+        // Workflow type filter
+        if (searchFilters.workflowType !== 'all' && entry.workflowType !== searchFilters.workflowType) {
+          return false;
+        }
+
+        // Nurse name filter
+        if (searchFilters.nurseName) {
+          const nurseLower = searchFilters.nurseName.toLowerCase();
+          if (!entry.nurseName?.toLowerCase().includes(nurseLower)) {
+            return false;
+          }
+        }
+
+        // Date range filter
+        if (searchFilters.dateRange !== 'all') {
+          const entryDate = new Date(entry.timestamp);
+          const now = new Date();
+
+          switch (searchFilters.dateRange) {
+            case 'today':
+              if (entryDate.toDateString() !== now.toDateString()) {
+                return false;
+              }
+              break;
+            case 'week':
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              if (entryDate < weekAgo) {
+                return false;
+              }
+              break;
+            case 'month':
+              const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+              if (entryDate < monthAgo) {
+                return false;
+              }
+              break;
+          }
+        }
+
+        return true;
+      });
+    },
+    [searchFilters]
+  );
+
+  // Get entries for selected patient with filters applied
   const patientEntries = selectedPatient
-    ? allEntries.filter((entry) => entry.patientId === selectedPatient.id)
+    ? filterEntries(allEntries.filter((entry) => entry.patientId === selectedPatient.id))
     : [];
 
   // Get workflow type color
@@ -381,12 +449,40 @@ function App() {
                   </h3>
                 </div>
 
+                {/* Search and Filter Component */}
+                <SearchFilter onFilterChange={setSearchFilters} />
+
                 {patientEntries.length === 0 ? (
                   <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                    <p>No documentation entries for this patient yet.</p>
-                    <p className="text-sm mt-2">
-                      Entries from the Nurse App will appear here in real-time.
-                    </p>
+                    {searchFilters.searchText ||
+                    searchFilters.workflowType !== 'all' ||
+                    searchFilters.dateRange !== 'all' ||
+                    searchFilters.nurseName ? (
+                      <>
+                        <svg
+                          className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <p className="font-medium">No entries match your search criteria.</p>
+                        <p className="text-sm mt-2">Try adjusting your filters or clearing the search.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>No documentation entries for this patient yet.</p>
+                        <p className="text-sm mt-2">
+                          Entries from the Nurse App will appear here in real-time.
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
