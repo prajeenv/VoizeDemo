@@ -43,7 +43,7 @@ voize-demo/
 │   │   │   ├── NoteDetail.tsx
 │   │   │   └── PatientList.tsx
 │   │   └── App.tsx
-│   ├── vite.config.ts      # Port: 5174
+│   ├── vite.config.ts      # Port: 5184
 │   └── tailwind.config.js
 └── shared/
     └── types.ts            # Shared TypeScript types
@@ -93,7 +93,7 @@ cd ehr-dashboard && npm run dev
 
 Access the applications:
 - Nurse App: http://localhost:5173
-- EHR Dashboard: http://localhost:5174
+- EHR Dashboard: http://localhost:5184
 
 **Note:** If ports are already in use, Vite will automatically assign the next available port.
 
