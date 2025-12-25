@@ -56,7 +56,7 @@ export function useVoiceRecording(
     continuous = true,
     interimResults = true,
     language = 'en-US',
-    maxAlternatives = 3, // Request more alternatives for better accuracy
+    maxAlternatives = 1, // Use single best result for faster processing
     onTranscriptChange,
     onError,
     onStart,
@@ -68,6 +68,7 @@ export function useVoiceRecording(
   const [state, setState] = useState<VoiceRecognitionState>({
     isRecording: false,
     isPaused: false,
+    isProcessing: false,
     currentTranscript: '',
     finalTranscript: '',
     interimTranscript: '',
@@ -104,11 +105,17 @@ export function useVoiceRecording(
         onEnd?.();
       },
       onError: (error: VoiceRecognitionError) => {
-        setState((prev) => ({ ...prev, error, isRecording: false, isPaused: false }));
+        setState((prev) => ({ ...prev, error, isRecording: false, isPaused: false, isProcessing: false }));
         onError?.(error);
       },
+      onProcessingStart: () => {
+        setState((prev) => ({ ...prev, isProcessing: true }));
+      },
+      onProcessingEnd: () => {
+        setState((prev) => ({ ...prev, isProcessing: false }));
+      },
     };
-  }, [onTranscriptChange, onError, onStart, onEnd]);
+  }, [onTranscriptChange, onError, onStart, onEnd, enableMedicalProcessing]);
 
   // Initialize voice service
   useEffect(() => {
@@ -193,7 +200,7 @@ export function useVoiceRecording(
 
   const stopRecording = useCallback(() => {
     voiceService.stopRecording();
-    setState((prev) => ({ ...prev, isRecording: false, isPaused: false }));
+    setState((prev) => ({ ...prev, isRecording: false, isPaused: false, isProcessing: false }));
   }, []);
 
   const pauseRecording = useCallback(() => {
@@ -228,6 +235,7 @@ export function useVoiceRecording(
       interimTranscript: '',
       isRecording: false,
       isPaused: false,
+      isProcessing: false,
     }));
   }, [state.isRecording]);
 

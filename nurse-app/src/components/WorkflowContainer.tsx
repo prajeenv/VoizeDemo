@@ -19,6 +19,7 @@ export const WorkflowContainer: React.FC = () => {
   const {
     isRecording,
     isPaused,
+    isProcessing,
     currentTranscript,
     startRecording,
     stopRecording,
@@ -148,6 +149,11 @@ export const WorkflowContainer: React.FC = () => {
                 )}
                 {isPaused && (
                   <span className="text-yellow-600 font-medium">⏸ Paused</span>
+                )}
+                {isProcessing && (
+                  <span className="flex items-center gap-2 text-blue-600 font-medium">
+                    <span className="animate-spin">⟳</span> Processing...
+                  </span>
                 )}
               </div>
 

@@ -31,6 +31,7 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
   const {
     isRecording,
     isPaused,
+    isProcessing,
     currentTranscript,
     startRecording,
     stopRecording,
@@ -191,6 +192,11 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
                 <span className="flex items-center gap-2 text-yellow-600 font-medium">
                   <span className="w-3 h-3 bg-yellow-600 rounded-full"></span>
                   Paused
+                </span>
+              )}
+              {isProcessing && (
+                <span className="flex items-center gap-2 text-blue-600 font-medium">
+                  <span className="animate-spin">⟳</span> Processing...
                 </span>
               )}
             </div>

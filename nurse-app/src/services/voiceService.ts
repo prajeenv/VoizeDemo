@@ -15,6 +15,7 @@ export interface VoiceServiceConfig {
 export interface VoiceRecognitionState {
   isRecording: boolean;
   isPaused: boolean;
+  isProcessing: boolean;
   currentTranscript: string;
   finalTranscript: string;
   interimTranscript: string;
@@ -48,6 +49,8 @@ export interface VoiceRecognitionCallbacks {
   onSoundEnd?: () => void;
   onSpeechStart?: () => void;
   onSpeechEnd?: () => void;
+  onProcessingStart?: () => void;
+  onProcessingEnd?: () => void;
 }
 
 class VoiceService {
@@ -55,9 +58,11 @@ class VoiceService {
   private isInitialized = false;
   private isPaused = false;
   private isRecording = false;
+  private isProcessing = false;
   private finalTranscript = '';
   private interimTranscript = '';
   private callbacks: VoiceRecognitionCallbacks = {};
+  private processingTimeout: number | null = null;
 
   constructor() {
     this.checkBrowserSupport();
@@ -125,7 +130,7 @@ class VoiceService {
     recognition.continuous = config.continuous ?? true;
     recognition.interimResults = config.interimResults ?? true;
     recognition.lang = config.language ?? 'en-US';
-    recognition.maxAlternatives = config.maxAlternatives ?? 3; // Get more alternatives for better accuracy
+    recognition.maxAlternatives = config.maxAlternatives ?? 1; // Use single best result for faster processing
 
     // Add custom grammars if provided (for medical terminology and numbers)
     if (config.grammars) {
@@ -192,6 +197,8 @@ class VoiceService {
       if (final) {
         this.finalTranscript += final;
         this.interimTranscript = '';
+        // Stop processing indicator when final result arrives
+        this.stopProcessing();
         this.callbacks.onTranscriptUpdate?.(this.finalTranscript.trim(), true);
       } else if (interim) {
         this.interimTranscript = interim;
@@ -208,8 +215,9 @@ class VoiceService {
         return;
       }
 
-      // Reset recording state on error
+      // Reset recording and processing state on error
       this.isRecording = false;
+      this.stopProcessing();
 
       const error = this.handleRecognitionError(event);
       this.callbacks.onError?.(error);
@@ -232,8 +240,46 @@ class VoiceService {
     };
 
     this.recognition.onspeechend = () => {
+      // Start processing indicator when speech ends (waiting for network response)
+      this.startProcessing();
       this.callbacks.onSpeechEnd?.();
     };
+  }
+
+  /**
+   * Start processing indicator (called when speech ends, waiting for final result)
+   */
+  private startProcessing(): void {
+    if (this.isProcessing) return;
+
+    this.isProcessing = true;
+    this.callbacks.onProcessingStart?.();
+
+    // Clear any existing timeout
+    if (this.processingTimeout) {
+      clearTimeout(this.processingTimeout);
+    }
+
+    // Auto-clear processing state after 5 seconds if no result
+    this.processingTimeout = window.setTimeout(() => {
+      this.stopProcessing();
+    }, 5000);
+  }
+
+  /**
+   * Stop processing indicator (called when final result arrives)
+   */
+  private stopProcessing(): void {
+    if (!this.isProcessing) return;
+
+    this.isProcessing = false;
+    this.callbacks.onProcessingEnd?.();
+
+    // Clear timeout
+    if (this.processingTimeout) {
+      clearTimeout(this.processingTimeout);
+      this.processingTimeout = null;
+    }
   }
 
   /**
@@ -294,6 +340,9 @@ class VoiceService {
       return;
     }
 
+    // Clear transcripts from previous recording session
+    this.finalTranscript = '';
+    this.interimTranscript = '';
     this.isPaused = false;
 
     try {
@@ -320,6 +369,7 @@ class VoiceService {
 
     this.isPaused = false;
     this.isRecording = false;
+    this.stopProcessing();
     this.recognition.stop();
   }
 
@@ -409,6 +459,7 @@ class VoiceService {
       }
       this.recognition = null;
     }
+    this.stopProcessing();
     this.isInitialized = false;
     this.isRecording = false;
     this.isPaused = false;
