@@ -13,6 +13,7 @@ import {
   validateForm,
   type WorkflowField,
 } from './WorkflowBase';
+import { useFieldTargetedTranscript } from '../hooks/useFieldTargetedTranscript';
 
 interface ShiftHandoffData {
   outgoingNurse: string;
@@ -45,27 +46,35 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [editedTranscript, setEditedTranscript] = useState(transcript);
+
+  // Field-targeted transcript auto-fill with NLP integration
+  const { segmentationWarnings } = useFieldTargetedTranscript({
+    transcript,
+    workflowType: 'shift-handoff',
+    currentFormData: formData,
+    onAutoFill: (updates, newAutoFilled) => {
+      setFormData((prev) => ({ ...prev, ...updates }));
+      setAutoFilledFields((prev) => new Set([...prev, ...newAutoFilled]));
+    }
+  });
 
   // Update edited transcript when transcript changes
   useEffect(() => {
     setEditedTranscript(transcript);
   }, [transcript]);
 
-  // Auto-populate SBAR sections from transcript
-  useEffect(() => {
-    if (!transcript || formData.situation) return;
-
-    // Simple heuristic: put the full transcript in the situation field initially
-    // In a real system, you'd use NLP to parse SBAR sections
-    setFormData((prev) => ({
-      ...prev,
-      situation: transcript,
-    }));
-  }, [transcript]);
-
   const handleFieldChange = (field: keyof ShiftHandoffData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Remove auto-filled status when user manually edits
+    if (autoFilledFields.has(field)) {
+      setAutoFilledFields((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(field);
+        return newSet;
+      });
+    }
     // Clear error for this field
     if (errors[field]) {
       setErrors((prev) => {
@@ -159,6 +168,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Situation (Current Status & Issues)',
       type: 'textarea',
       required: true,
+      autoFilled: autoFilledFields.has('situation'),
       placeholder: 'What is happening with the patient right now? Current problems, concerns, symptoms...',
     },
     background: {
@@ -166,6 +176,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Background (Relevant History & Context)',
       type: 'textarea',
       required: true,
+      autoFilled: autoFilledFields.has('background'),
       placeholder: 'Medical history, admission diagnosis, relevant procedures, medications...',
     },
     assessment: {
@@ -173,6 +184,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Assessment (Clinical Findings)',
       type: 'textarea',
       required: true,
+      autoFilled: autoFilledFields.has('assessment'),
       placeholder: 'Current vital signs, lab results, physical assessment findings, trends...',
     },
     recommendation: {
@@ -180,6 +192,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Recommendation (Continuing Care)',
       type: 'textarea',
       required: true,
+      autoFilled: autoFilledFields.has('recommendation'),
       placeholder: 'What needs to be done? Upcoming tasks, monitoring needs, anticipated changes...',
     },
     pendingTasks: {
@@ -187,6 +200,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Pending Tasks',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('pendingTasks'),
       placeholder: 'Outstanding orders, scheduled medications, pending tests or procedures...',
     },
     criticalAlerts: {
@@ -194,6 +208,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       label: 'Critical Alerts',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('criticalAlerts'),
       placeholder: 'Fall risk, isolation precautions, allergies, code status, special needs...',
     },
   };
@@ -203,7 +218,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Shift Handoff (SBAR)</h2>
         <p className="text-gray-600">
-          Complete shift handoff using SBAR format: Situation, Background, Assessment, Recommendation.
+          Complete shift handoff using SBAR format: Situation, Background, Assessment, Recommendation. Fields highlighted in blue were auto-filled from your voice transcript.
         </p>
       </div>
 
@@ -237,6 +252,28 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
             error={errors.shiftTime}
           />
         </FieldGroup>
+
+        {/* Voice Recording Tips */}
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-sm text-green-900 font-semibold mb-1">
+            💡 Voice Recording Tip for SBAR:
+          </p>
+          <p className="text-sm text-green-800">
+            Say each SBAR section name before content. Example: "Situation patient has chest pain. Background history of CAD. Assessment BP 140/90. Recommendation monitor closely."
+          </p>
+        </div>
+
+        {/* Segmentation Warnings */}
+        {segmentationWarnings.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800 font-semibold mb-1">Transcript Notes:</p>
+            <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+              {segmentationWarnings.map((warning, i) => (
+                <li key={i}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h3 className="font-semibold text-blue-900 mb-2">SBAR Framework</h3>

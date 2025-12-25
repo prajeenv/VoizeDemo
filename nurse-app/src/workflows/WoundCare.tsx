@@ -13,7 +13,7 @@ import {
   validateForm,
   type WorkflowField,
 } from './WorkflowBase';
-import { extractWoundInfo } from './transcriptParser';
+import { useFieldTargetedTranscript } from '../hooks/useFieldTargetedTranscript';
 
 interface WoundCareData {
   woundLocation: string;
@@ -76,40 +76,16 @@ export const WoundCare: React.FC<WorkflowBaseProps> = ({
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [editedTranscript, setEditedTranscript] = useState(transcript);
 
-  // Auto-fill fields from transcript
-  useEffect(() => {
-    if (!transcript) return;
-
-    const woundInfo = extractWoundInfo(transcript);
-
-    const newAutoFilled = new Set<string>();
-    const updates: Partial<WoundCareData> = {};
-
-    if (woundInfo.location && !formData.woundLocation) {
-      updates.woundLocation = woundInfo.location;
-      newAutoFilled.add('woundLocation');
-    }
-
-    if (woundInfo.length && formData.length === 0) {
-      updates.length = woundInfo.length;
-      newAutoFilled.add('length');
-    }
-
-    if (woundInfo.width && formData.width === 0) {
-      updates.width = woundInfo.width;
-      newAutoFilled.add('width');
-    }
-
-    if (woundInfo.depth && formData.depth === 0) {
-      updates.depth = woundInfo.depth;
-      newAutoFilled.add('depth');
-    }
-
-    if (Object.keys(updates).length > 0) {
+  // Field-targeted transcript auto-fill with NLP integration
+  const { segmentationWarnings } = useFieldTargetedTranscript({
+    transcript,
+    workflowType: 'wound-care',
+    currentFormData: formData,
+    onAutoFill: (updates, newAutoFilled) => {
       setFormData((prev) => ({ ...prev, ...updates }));
       setAutoFilledFields((prev) => new Set([...prev, ...newAutoFilled]));
     }
-  }, [transcript]);
+  });
 
   // Update edited transcript when transcript changes
   useEffect(() => {
@@ -257,6 +233,7 @@ export const WoundCare: React.FC<WorkflowBaseProps> = ({
       label: 'Treatment Provided',
       type: 'textarea',
       required: true,
+      autoFilled: autoFilledFields.has('treatmentProvided'),
       placeholder: 'Describe wound care treatment, dressing type, cleansing method...',
     },
   };
@@ -277,6 +254,28 @@ export const WoundCare: React.FC<WorkflowBaseProps> = ({
           isRecording={isRecording}
           onEdit={setEditedTranscript}
         />
+
+        {/* Voice Recording Tips */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-900 font-semibold mb-1">
+            💡 Voice Recording Tip:
+          </p>
+          <p className="text-sm text-blue-800">
+            Say "Treatment provided" before describing care. Example: "Treatment provided cleaned with saline, applied hydrocolloid dressing."
+          </p>
+        </div>
+
+        {/* Segmentation Warnings */}
+        {segmentationWarnings.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800 font-semibold mb-1">Transcript Notes:</p>
+            <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+              {segmentationWarnings.map((warning, i) => (
+                <li key={i}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <FieldGroup title="Wound Assessment">
           <FormField

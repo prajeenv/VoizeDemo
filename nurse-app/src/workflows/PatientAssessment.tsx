@@ -13,7 +13,8 @@ import {
   validateForm,
   type WorkflowField,
 } from './WorkflowBase';
-import { extractPatientInfo, extractAssessmentInfo, extractVitalSigns } from './transcriptParser';
+import { useFieldTargetedTranscript } from '../hooks/useFieldTargetedTranscript';
+import { useApp } from '../contexts/AppContext';
 
 interface PatientAssessmentData {
   patientId: string;
@@ -47,9 +48,11 @@ export const PatientAssessment: React.FC<WorkflowBaseProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const { selectedPatient } = useApp();
+
   const [formData, setFormData] = useState<PatientAssessmentData>({
-    patientId: '',
-    roomNumber: '',
+    patientId: selectedPatient?.id || '',
+    roomNumber: selectedPatient?.room || '',
     levelOfConsciousness: '',
     mobilityStatus: '',
     painLevel: 0,
@@ -61,47 +64,16 @@ export const PatientAssessment: React.FC<WorkflowBaseProps> = ({
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [editedTranscript, setEditedTranscript] = useState(transcript);
 
-  // Auto-fill fields from transcript
-  useEffect(() => {
-    if (!transcript) return;
-
-    const patientInfo = extractPatientInfo(transcript);
-    const assessmentInfo = extractAssessmentInfo(transcript);
-    const vitalSigns = extractVitalSigns(transcript);
-
-    const newAutoFilled = new Set<string>();
-    const updates: Partial<PatientAssessmentData> = {};
-
-    if (patientInfo.patientId && !formData.patientId) {
-      updates.patientId = patientInfo.patientId;
-      newAutoFilled.add('patientId');
-    }
-
-    if (patientInfo.roomNumber && !formData.roomNumber) {
-      updates.roomNumber = patientInfo.roomNumber;
-      newAutoFilled.add('roomNumber');
-    }
-
-    if (assessmentInfo.levelOfConsciousness && !formData.levelOfConsciousness) {
-      updates.levelOfConsciousness = assessmentInfo.levelOfConsciousness;
-      newAutoFilled.add('levelOfConsciousness');
-    }
-
-    if (assessmentInfo.mobilityStatus && !formData.mobilityStatus) {
-      updates.mobilityStatus = assessmentInfo.mobilityStatus;
-      newAutoFilled.add('mobilityStatus');
-    }
-
-    if (vitalSigns.painLevel !== undefined && formData.painLevel === 0) {
-      updates.painLevel = vitalSigns.painLevel;
-      newAutoFilled.add('painLevel');
-    }
-
-    if (Object.keys(updates).length > 0) {
+  // Field-targeted transcript auto-fill with NLP integration
+  const { segmentationWarnings } = useFieldTargetedTranscript({
+    transcript,
+    workflowType: 'patient-assessment',
+    currentFormData: formData,
+    onAutoFill: (updates, newAutoFilled) => {
       setFormData((prev) => ({ ...prev, ...updates }));
       setAutoFilledFields((prev) => new Set([...prev, ...newAutoFilled]));
     }
-  }, [transcript]);
+  });
 
   // Update edited transcript when transcript changes
   useEffect(() => {
@@ -223,6 +195,7 @@ export const PatientAssessment: React.FC<WorkflowBaseProps> = ({
       label: 'Skin Condition',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('skinCondition'),
       placeholder: 'Describe skin integrity, color, temperature, moisture...',
     },
     observations: {
@@ -230,6 +203,7 @@ export const PatientAssessment: React.FC<WorkflowBaseProps> = ({
       label: 'General Observations',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('observations'),
       placeholder: 'Additional observations and notes...',
     },
   };
@@ -250,6 +224,28 @@ export const PatientAssessment: React.FC<WorkflowBaseProps> = ({
           isRecording={isRecording}
           onEdit={setEditedTranscript}
         />
+
+        {/* Voice Recording Tips */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-900 font-semibold mb-1">
+            💡 Voice Recording Tip:
+          </p>
+          <p className="text-sm text-blue-800">
+            Say field names before content for targeted auto-fill. Example: "Skin condition warm and dry. Observations patient ambulatory."
+          </p>
+        </div>
+
+        {/* Segmentation Warnings */}
+        {segmentationWarnings.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800 font-semibold mb-1">Transcript Notes:</p>
+            <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+              {segmentationWarnings.map((warning, i) => (
+                <li key={i}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <FieldGroup title="Patient Information">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

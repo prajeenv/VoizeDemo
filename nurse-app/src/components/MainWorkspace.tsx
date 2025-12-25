@@ -28,6 +28,18 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
   const [editableTranscript, setEditableTranscript] = useState('');
   const [isEditingTranscript, setIsEditingTranscript] = useState(false);
 
+  // Workflow-specific transcript storage
+  const [workflowTranscripts, setWorkflowTranscripts] = useState<Record<string, string>>({
+    'patient-assessment': '',
+    'vital-signs': '',
+    'medication-administration': '',
+    'wound-care': '',
+    'shift-handoff': ''
+  });
+
+  // Track which workflow is currently active
+  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowType | null>(null);
+
   const {
     isRecording,
     isPaused,
@@ -51,6 +63,43 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
       setEditableTranscript(currentTranscript);
     }
   }, [currentTranscript, isEditingTranscript]);
+
+  // Save transcript when switching workflows
+  useEffect(() => {
+    if (activeWorkflow && currentTranscript) {
+      setWorkflowTranscripts(prev => ({
+        ...prev,
+        [activeWorkflow]: currentTranscript
+      }));
+    }
+  }, [currentTranscript, activeWorkflow]);
+
+  // Handle workflow switching - clear transcript and load workflow-specific one
+  useEffect(() => {
+    if (selectedWorkflow !== activeWorkflow) {
+      // Save current workflow transcript before switching
+      if (activeWorkflow && currentTranscript) {
+        setWorkflowTranscripts(prev => ({
+          ...prev,
+          [activeWorkflow]: currentTranscript
+        }));
+      }
+
+      // Clear current recording
+      clearTranscript();
+      setEditableTranscript('');
+
+      // Load new workflow's transcript if exists
+      if (selectedWorkflow) {
+        const workflowTranscript = workflowTranscripts[selectedWorkflow];
+        if (workflowTranscript) {
+          setEditableTranscript(workflowTranscript);
+        }
+      }
+
+      setActiveWorkflow(selectedWorkflow);
+    }
+  }, [selectedWorkflow, activeWorkflow, currentTranscript, workflowTranscripts, clearTranscript]);
 
   const handleWorkflowSubmit = (data: any) => {
     // Ensure patient is selected
@@ -92,6 +141,15 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
     if (isRecording) {
       stopRecording();
     }
+
+    // Clear workflow-specific transcript
+    if (selectedWorkflow) {
+      setWorkflowTranscripts(prev => ({
+        ...prev,
+        [selectedWorkflow]: ''
+      }));
+    }
+
     clearTranscript();
     setEditableTranscript('');
     setIsEditingTranscript(false);

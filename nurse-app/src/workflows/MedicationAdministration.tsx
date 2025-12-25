@@ -13,7 +13,8 @@ import {
   validateForm,
   type WorkflowField,
 } from './WorkflowBase';
-import { extractPatientInfo, extractMedicationInfo } from './transcriptParser';
+import { useFieldTargetedTranscript } from '../hooks/useFieldTargetedTranscript';
+import { useApp } from '../contexts/AppContext';
 
 interface MedicationAdministrationData {
   patientId: string;
@@ -46,8 +47,10 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
   onSubmit,
   onCancel,
 }) => {
+  const { selectedPatient } = useApp();
+
   const [formData, setFormData] = useState<MedicationAdministrationData>({
-    patientId: '',
+    patientId: selectedPatient?.id || '',
     medicationName: '',
     dosage: '',
     route: '',
@@ -60,48 +63,16 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   const [editedTranscript, setEditedTranscript] = useState(transcript);
 
-  // Auto-fill fields from transcript
-  useEffect(() => {
-    if (!transcript) return;
-
-    const patientInfo = extractPatientInfo(transcript);
-    const medicationInfo = extractMedicationInfo(transcript);
-
-    const newAutoFilled = new Set<string>();
-    const updates: Partial<MedicationAdministrationData> = {};
-
-    if (patientInfo.patientId && !formData.patientId) {
-      updates.patientId = patientInfo.patientId;
-      newAutoFilled.add('patientId');
-    }
-
-    if (medicationInfo.medications && medicationInfo.medications.length > 0 && !formData.medicationName) {
-      updates.medicationName = medicationInfo.medications[0];
-      newAutoFilled.add('medicationName');
-    }
-
-    if (medicationInfo.dosage && !formData.dosage) {
-      updates.dosage = medicationInfo.dosage;
-      newAutoFilled.add('dosage');
-    }
-
-    if (medicationInfo.route && !formData.route) {
-      updates.route = medicationInfo.route;
-      newAutoFilled.add('route');
-    }
-
-    if (medicationInfo.timeAdministered && formData.timeAdministered) {
-      // Update time if parsed from transcript
-      const today = new Date().toISOString().slice(0, 11);
-      updates.timeAdministered = today + medicationInfo.timeAdministered;
-      newAutoFilled.add('timeAdministered');
-    }
-
-    if (Object.keys(updates).length > 0) {
+  // Field-targeted transcript auto-fill with NLP integration
+  const { segmentationWarnings } = useFieldTargetedTranscript({
+    transcript,
+    workflowType: 'medication-administration',
+    currentFormData: formData,
+    onAutoFill: (updates, newAutoFilled) => {
       setFormData((prev) => ({ ...prev, ...updates }));
       setAutoFilledFields((prev) => new Set([...prev, ...newAutoFilled]));
     }
-  }, [transcript]);
+  });
 
   // Update edited transcript when transcript changes
   useEffect(() => {
@@ -220,6 +191,7 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
       label: 'Patient Response/Reaction',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('patientResponse'),
       placeholder: 'Describe patient response to medication...',
     },
     adverseReaction: {
@@ -227,6 +199,7 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
       label: 'Adverse Reaction (if any)',
       type: 'textarea',
       required: false,
+      autoFilled: autoFilledFields.has('adverseReaction'),
       placeholder: 'Document any adverse reactions or side effects...',
     },
   };
@@ -247,6 +220,28 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
           isRecording={isRecording}
           onEdit={setEditedTranscript}
         />
+
+        {/* Voice Recording Tips */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-900 font-semibold mb-1">
+            💡 Voice Recording Tip:
+          </p>
+          <p className="text-sm text-blue-800">
+            Say field names before content for targeted auto-fill. Example: "Patient response tolerated well. Adverse reaction none noted."
+          </p>
+        </div>
+
+        {/* Segmentation Warnings */}
+        {segmentationWarnings.length > 0 && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800 font-semibold mb-1">Transcript Notes:</p>
+            <ul className="text-sm text-yellow-700 list-disc list-inside space-y-1">
+              {segmentationWarnings.map((warning, i) => (
+                <li key={i}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <FieldGroup title="Patient Information">
           <FormField
