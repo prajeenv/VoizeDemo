@@ -74,32 +74,30 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
     }
   }, [currentTranscript, activeWorkflow]);
 
-  // Handle workflow switching - clear transcript and load workflow-specific one
+  // Key to force remount workflow components when needed
+  const [workflowKey, setWorkflowKey] = useState(0);
+
+  // Handle workflow switching - always start fresh
   useEffect(() => {
     if (selectedWorkflow !== activeWorkflow) {
-      // Save current workflow transcript before switching
-      if (activeWorkflow && currentTranscript) {
-        setWorkflowTranscripts(prev => ({
-          ...prev,
-          [activeWorkflow]: currentTranscript
-        }));
-      }
-
       // Clear current recording
       clearTranscript();
       setEditableTranscript('');
 
-      // Load new workflow's transcript if exists
+      // Clear any stored transcript for the selected workflow to ensure fresh start
       if (selectedWorkflow) {
-        const workflowTranscript = workflowTranscripts[selectedWorkflow];
-        if (workflowTranscript) {
-          setEditableTranscript(workflowTranscript);
-        }
+        setWorkflowTranscripts(prev => ({
+          ...prev,
+          [selectedWorkflow]: ''
+        }));
       }
+
+      // Force remount of workflow component to reset form state
+      setWorkflowKey(prev => prev + 1);
 
       setActiveWorkflow(selectedWorkflow);
     }
-  }, [selectedWorkflow, activeWorkflow, currentTranscript, workflowTranscripts, clearTranscript]);
+  }, [selectedWorkflow, activeWorkflow, clearTranscript]);
 
   const handleWorkflowSubmit = (data: any) => {
     // Ensure patient is selected
@@ -162,6 +160,17 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
       clearTranscript();
       setEditableTranscript('');
       setIsEditingTranscript(false);
+
+      // Clear stored workflow transcript
+      if (selectedWorkflow) {
+        setWorkflowTranscripts(prev => ({
+          ...prev,
+          [selectedWorkflow]: ''
+        }));
+      }
+
+      // Force remount of workflow component to reset form state
+      setWorkflowKey(prev => prev + 1);
     }
   };
 
@@ -180,15 +189,15 @@ export const MainWorkspace: React.FC<MainWorkspaceProps> = ({
 
     switch (selectedWorkflow) {
       case 'patient-assessment':
-        return <PatientAssessment {...commonProps} />;
+        return <PatientAssessment key={workflowKey} {...commonProps} />;
       case 'vital-signs':
-        return <VitalSigns {...commonProps} />;
+        return <VitalSigns key={workflowKey} {...commonProps} />;
       case 'medication-administration':
-        return <MedicationAdministration {...commonProps} />;
+        return <MedicationAdministration key={workflowKey} {...commonProps} />;
       case 'wound-care':
-        return <WoundCare {...commonProps} />;
+        return <WoundCare key={workflowKey} {...commonProps} />;
       case 'shift-handoff':
-        return <ShiftHandoff {...commonProps} />;
+        return <ShiftHandoff key={workflowKey} {...commonProps} />;
       default:
         return null;
     }
