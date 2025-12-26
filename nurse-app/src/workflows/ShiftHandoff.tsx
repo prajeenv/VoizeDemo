@@ -47,7 +47,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
-  const [editedTranscript, setEditedTranscript] = useState(transcript);
+  const [editedTranscript, setEditedTranscript] = useState(transcript || '');
 
   // Field-targeted transcript auto-fill with NLP integration
   const { segmentationWarnings } = useFieldTargetedTranscript({

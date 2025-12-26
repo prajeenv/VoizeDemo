@@ -160,10 +160,10 @@ export const TranscriptViewer: React.FC<TranscriptViewerProps> = ({
   onEdit,
 }) => {
   const [isEditing, setIsEditing] = React.useState(false);
-  const [editedTranscript, setEditedTranscript] = React.useState(transcript);
+  const [editedTranscript, setEditedTranscript] = React.useState(transcript || '');
 
   React.useEffect(() => {
-    setEditedTranscript(transcript);
+    setEditedTranscript(transcript || '');
   }, [transcript]);
 
   const handleSave = () => {

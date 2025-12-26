@@ -55,11 +55,12 @@ export const VitalSigns: React.FC<WorkflowBaseProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
-  const [editedTranscript, setEditedTranscript] = useState(transcript);
+  const [editedTranscript, setEditedTranscript] = useState(transcript || '');
 
   // Auto-fill fields from transcript
   useEffect(() => {
-    if (!transcript) return;
+    // Skip if transcript is empty or hasn't changed meaningfully
+    if (!transcript || transcript.trim() === '') return;
 
     const vitalSigns = extractVitalSigns(transcript);
 

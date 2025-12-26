@@ -3,7 +3,7 @@
  * Integrates voice recording with workflow forms
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
 import { WorkflowSelector, type WorkflowType } from './WorkflowSelector';
 import { PatientAssessment } from '../workflows/PatientAssessment';
@@ -15,6 +15,8 @@ import { ShiftHandoff } from '../workflows/ShiftHandoff';
 export const WorkflowContainer: React.FC = () => {
   const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowType | null>(null);
   const [submittedData, setSubmittedData] = useState<any[]>([]);
+  const [workflowKey, setWorkflowKey] = useState(0);
+  const [workflowTranscript, setWorkflowTranscript] = useState('');
 
   const {
     isRecording,
@@ -34,6 +36,13 @@ export const WorkflowContainer: React.FC = () => {
     enableMedicalProcessing: true,
   });
 
+  // Update workflow transcript only when there's an active workflow
+  useEffect(() => {
+    if (selectedWorkflow) {
+      setWorkflowTranscript(currentTranscript);
+    }
+  }, [currentTranscript, selectedWorkflow]);
+
   const handleWorkflowSubmit = (data: any) => {
     console.log('Workflow submitted:', data);
     setSubmittedData((prev) => [...prev, data]);
@@ -44,6 +53,9 @@ export const WorkflowContainer: React.FC = () => {
 
     // Show success message
     alert(`${data.workflowType} documentation submitted successfully!`);
+
+    // Increment key to ensure fresh state on next workflow selection
+    setWorkflowKey((prev) => prev + 1);
 
     // Return to workflow selector
     setSelectedWorkflow(null);
@@ -58,13 +70,19 @@ export const WorkflowContainer: React.FC = () => {
   };
 
   const handleSelectWorkflow = (workflowType: WorkflowType) => {
-    // Clear any existing transcript when switching workflows
-    if (currentTranscript) {
-      clearTranscript();
-    }
+    // Stop recording and clear transcript
     if (isRecording) {
       stopRecording();
     }
+    clearTranscript();
+
+    // Clear the workflow transcript state
+    setWorkflowTranscript('');
+
+    // Increment key to force remount and reset form state
+    setWorkflowKey((prev) => prev + 1);
+
+    // Set the new workflow
     setSelectedWorkflow(workflowType);
   };
 
@@ -72,7 +90,7 @@ export const WorkflowContainer: React.FC = () => {
     if (!selectedWorkflow) return null;
 
     const commonProps = {
-      transcript: currentTranscript,
+      transcript: workflowTranscript, // Use controlled workflow transcript
       isRecording,
       onSubmit: handleWorkflowSubmit,
       onCancel: handleWorkflowCancel,
@@ -80,15 +98,15 @@ export const WorkflowContainer: React.FC = () => {
 
     switch (selectedWorkflow) {
       case 'patient-assessment':
-        return <PatientAssessment {...commonProps} />;
+        return <PatientAssessment key={workflowKey} {...commonProps} />;
       case 'vital-signs':
-        return <VitalSigns {...commonProps} />;
+        return <VitalSigns key={workflowKey} {...commonProps} />;
       case 'medication-administration':
-        return <MedicationAdministration {...commonProps} />;
+        return <MedicationAdministration key={workflowKey} {...commonProps} />;
       case 'wound-care':
-        return <WoundCare {...commonProps} />;
+        return <WoundCare key={workflowKey} {...commonProps} />;
       case 'shift-handoff':
-        return <ShiftHandoff {...commonProps} />;
+        return <ShiftHandoff key={workflowKey} {...commonProps} />;
       default:
         return null;
     }

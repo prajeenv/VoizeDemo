@@ -24,7 +24,10 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nSTEP 8: Fix cross-port communication with centralized storage service\n\nImplemented a robust solution for cross-application communication between\nNurse App and EHR Dashboard using a shared storageService. This addresses\nthe critical bug where entries weren''t appearing in the EHR Dashboard.\n\nKey Changes:\n- Created shared/services/storageService.ts for centralized data management\n- Refactored both apps to use storageService instead of direct localStorage\n- Fixed port conflict \\(changed EHR Dashboard to port 5184\\)\n- Added proper subscription mechanism for real-time updates\n- Implemented comprehensive error handling and logging\n- Removed duplicate/unused imports\n\nTechnical Implementation:\n- Storage service provides unified API for both apps\n- Event-based notifications for cross-tab communication\n- Proper data persistence and retrieval with error handling\n- Cleaner separation of concerns in AppContext\n\nDocumentation:\n- Added comprehensive debugging guide \\(CROSS_PORT_DEBUGGING_GUIDE.md\\)\n- Created bug fix documentation \\(BUG_FIX_CROSS_PORT_COMMUNICATION.md\\)\n- Included testing guide \\(STEP_8_TESTING_GUIDE.md\\)\n- Step summary with implementation details \\(STEP_8_SUMMARY.md\\)\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(rm:*)",
       "Bash(git push)",
-      "Bash(npx tsc --noEmit)"
+      "Bash(npx tsc --noEmit)",
+      "Bash(powershell -Command:*)",
+      "Bash(taskkill:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
