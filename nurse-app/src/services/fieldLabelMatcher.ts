@@ -63,6 +63,18 @@ const WOUND_CARE_MAPPINGS: FieldMapping[] = [
 // Shift Handoff Field Mappings (SBAR)
 const SHIFT_HANDOFF_MAPPINGS: FieldMapping[] = [
   {
+    fieldKey: 'outgoingNurse',
+    primaryLabels: ['outgoing nurse', 'outgoing', 'outgoing nurse name'],
+    aliases: ['leaving nurse', 'off going nurse', 'off-going nurse', 'departing nurse'],
+    medicalTerms: ['nurse leaving', 'nurse going off']
+  },
+  {
+    fieldKey: 'incomingNurse',
+    primaryLabels: ['incoming nurse', 'incoming', 'incoming nurse name'],
+    aliases: ['arriving nurse', 'oncoming nurse', 'on-coming nurse', 'relieving nurse'],
+    medicalTerms: ['nurse arriving', 'nurse coming on']
+  },
+  {
     fieldKey: 'situation',
     primaryLabels: ['situation', 'current status', 'current situation'],
     aliases: ['s', 'sit', 'status'],

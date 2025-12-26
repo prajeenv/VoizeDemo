@@ -259,7 +259,7 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
             💡 Voice Recording Tip for SBAR:
           </p>
           <p className="text-sm text-green-800">
-            Say each SBAR section name before content. Example: "Situation patient has chest pain. Background history of CAD. Assessment BP 140/90. Recommendation monitor closely."
+            Say field names before content. Example: "Outgoing nurse Sarah Johnson. Incoming nurse Michael Chen. Situation patient has chest pain. Background history of CAD. Assessment BP 140/90. Recommendation monitor closely."
           </p>
         </div>
 

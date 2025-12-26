@@ -42,6 +42,8 @@ function getFieldLabelPhrases(workflowType: WorkflowType): Map<string, string> {
       'treatmentProvided': ['treatment provided', 'treatment', 'care provided', 'tx', 'intervention', 'wound care', 'dressing']
     },
     'shift-handoff': {
+      'outgoingNurse': ['outgoing nurse', 'outgoing', 'outgoing nurse name', 'leaving nurse', 'off going nurse', 'departing nurse'],
+      'incomingNurse': ['incoming nurse', 'incoming', 'incoming nurse name', 'arriving nurse', 'oncoming nurse', 'relieving nurse'],
       'situation': ['situation', 'current status', 'current situation', 'sit', 'status'],
       'background': ['background', 'history', 'patient background', 'bg', 'back', 'medical history'],
       'assessment': ['assessment', 'findings', 'clinical findings', 'assess'],
