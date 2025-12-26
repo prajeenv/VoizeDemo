@@ -6,8 +6,13 @@
 import { useEffect, useState, useRef } from 'react';
 import type { WorkflowType } from '../../../shared/types';
 import { segmentTranscript, type SegmentationResult } from '../services/transcriptSegmenter';
-import { parseTranscript } from '../services/parseService';
 import { isTextareaField } from '../services/fieldLabelMatcher';
+import {
+  extractVitalSigns,
+  extractMedicationInfo,
+  extractAssessmentInfo,
+  extractWoundInfo,
+} from '../workflows/transcriptParser';
 
 interface UseFieldTargetedTranscriptOptions {
   transcript: string;
@@ -44,28 +49,50 @@ export function useFieldTargetedTranscript({
       return;
     }
 
-    // Only process NEW transcript content (delta)
+    // Skip if transcript hasn't changed
     if (transcript === lastProcessedTranscript.current) {
-      return;
-    }
-
-    // Get the NEW portion of transcript
-    const newContent = transcript.slice(lastProcessedTranscript.current.length);
-
-    if (newContent.trim().length === 0) {
       return;
     }
 
     const updates: Record<string, any> = {};
     const autoFilledFields = new Set<string>();
 
-    // TIER 1: Extract structured data via NLP (existing functionality)
-    // This includes vitals, medications, consciousness level, mobility status, etc.
-    const parseResult = parseTranscript(transcript, workflowType);
-    const nlpData = parseResult.structuredData;
+    // TIER 1: Extract structured data via NLP using direct transcript parsers
+    // These return flat field keys that match the form data structure
+    // Always run NLP on full transcript for best extraction
+    const nlpData: Record<string, any> = {};
 
-    // TIER 2: Extract field-targeted content (new functionality)
-    const segmentationResult: SegmentationResult = segmentTranscript(newContent, workflowType);
+    // Extract data based on workflow type
+    if (workflowType === 'patient-assessment') {
+      // Extract vital signs (for pain level)
+      const vitals = extractVitalSigns(transcript);
+      if (vitals.painLevel !== undefined) nlpData.painLevel = vitals.painLevel;
+
+      // Extract assessment info (consciousness, mobility)
+      const assessment = extractAssessmentInfo(transcript);
+      if (assessment.levelOfConsciousness) nlpData.levelOfConsciousness = assessment.levelOfConsciousness;
+      if (assessment.mobilityStatus) nlpData.mobilityStatus = assessment.mobilityStatus;
+    } else if (workflowType === 'medication-administration') {
+      // Extract medication info
+      const medInfo = extractMedicationInfo(transcript);
+      if (medInfo.medications && medInfo.medications.length > 0) {
+        nlpData.medicationName = medInfo.medications[0];
+      }
+      if (medInfo.dosage) nlpData.dosage = medInfo.dosage;
+      if (medInfo.route) nlpData.route = medInfo.route;
+    } else if (workflowType === 'wound-care') {
+      // Extract wound info
+      const woundInfo = extractWoundInfo(transcript);
+      if (woundInfo.location) nlpData.woundLocation = woundInfo.location;
+      if (woundInfo.length) nlpData.length = woundInfo.length;
+      if (woundInfo.width) nlpData.width = woundInfo.width;
+      if (woundInfo.depth) nlpData.depth = woundInfo.depth;
+    }
+    // Note: shift-handoff relies entirely on field-targeted segmentation (SBAR labels)
+
+    // TIER 2: Extract field-targeted content for textarea fields
+    // Run segmentation on FULL transcript to ensure field labels that span chunks are detected
+    const segmentationResult: SegmentationResult = segmentTranscript(transcript, workflowType);
     setSegmentationWarnings(segmentationResult.warnings);
     setHasFieldLabels(segmentationResult.segments.length > 0);
 
@@ -80,41 +107,28 @@ export function useFieldTargetedTranscript({
       autoFilledFields.add(fieldKey);
     }
 
-    // Rule 2: If NLP extracted value AND field is NOT a textarea AND field wasn't explicitly mentioned
-    // → use NLP data
-    // (Skip patient ID and room number - they should come from patient selection)
-    if (nlpData) {
-      for (const [key, value] of Object.entries(nlpData)) {
-        // Skip if already filled by field-targeted content
-        if (updates[key] !== undefined) {
-          continue;
-        }
+    // Rule 2: Apply NLP-extracted data for non-textarea fields that weren't explicitly mentioned
+    for (const [key, value] of Object.entries(nlpData)) {
+      // Skip if already filled by field-targeted content
+      if (updates[key] !== undefined) {
+        continue;
+      }
 
-        // Skip patient ID and room number - these come from patient selection
-        if (key === 'patientId' || key === 'roomNumber') {
-          continue;
-        }
+      // Skip patient ID and room number - these come from patient selection
+      if (key === 'patientId' || key === 'roomNumber') {
+        continue;
+      }
 
-        // Only fill non-textarea fields from NLP
-        if (!isTextareaField(key, workflowType)) {
-          // Handle different data types
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-            // For objects like vital signs, check individual fields
-            for (const [subKey, subValue] of Object.entries(value)) {
-              if (subValue !== null && subValue !== undefined && subValue !== '') {
-                if (!currentFormData[key] || !currentFormData[key][subKey]) {
-                  if (!updates[key]) updates[key] = {};
-                  updates[key][subKey] = subValue;
-                  autoFilledFields.add(key);
-                }
-              }
-            }
-          } else if (value !== null && value !== undefined && value !== '') {
-            // For primitive values, only fill if empty
-            if (!currentFormData[key]) {
-              updates[key] = value;
-              autoFilledFields.add(key);
-            }
+      // Only fill non-textarea fields from NLP
+      if (!isTextareaField(key, workflowType)) {
+        if (value !== null && value !== undefined && value !== '') {
+          // Check if field is empty or has default value (0 for numbers)
+          const currentValue = currentFormData[key];
+          const isEmpty = currentValue === '' || currentValue === 0 || currentValue === undefined || currentValue === null;
+
+          if (isEmpty) {
+            updates[key] = value;
+            autoFilledFields.add(key);
           }
         }
       }

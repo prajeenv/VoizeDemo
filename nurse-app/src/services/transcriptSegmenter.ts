@@ -1,10 +1,11 @@
 /**
  * Transcript Segmenter Service
  * Parses continuous speech into field-specific segments based on field label mentions
+ * Handles speech without punctuation by scanning for field labels anywhere in text
  */
 
 import type { WorkflowType } from '../../../shared/types';
-import { matchFieldLabel } from './fieldLabelMatcher';
+// Note: We use inline field label definitions for better performance
 
 export interface FieldSegment {
   fieldKey: string;
@@ -22,98 +23,117 @@ export interface SegmentationResult {
 
 interface FieldMarker {
   fieldKey: string;
-  position: number;
+  position: number;  // character position in transcript
+  endPosition: number;  // end of the label phrase
   confidence: number;
   phrase: string;
 }
 
-// Medical abbreviations that should not be treated as sentence endings
-const MEDICAL_ABBREVIATIONS = [
-  'dr.', 'mr.', 'mrs.', 'ms.', 'pt.', 'pts.',
-  'bp.', 'hr.', 'rr.', 'temp.', 'mg.', 'ml.',
-  'cc.', 'sq.', 'iv.', 'im.', 'po.', 'prn.',
-  'bid.', 'tid.', 'qid.', 'hs.', 'ac.', 'pc.',
-  'stat.', 'no.', 'vs.', 'wt.', 'ht.'
-];
-
 /**
- * Check if a word is a medical abbreviation
+ * Get all possible field label phrases for a workflow
  */
-function isAbbreviation(word: string): boolean {
-  const lowerWord = word.toLowerCase();
-  return MEDICAL_ABBREVIATIONS.includes(lowerWord);
-}
+function getFieldLabelPhrases(workflowType: WorkflowType): Map<string, string> {
+  // Map of lowercase phrase -> fieldKey
+  const phrases = new Map<string, string>();
 
-/**
- * Tokenize text into sentences, preserving medical abbreviations
- */
-function tokenizeSentences(text: string): string[] {
-  const sentences: string[] = [];
-  let current = '';
+  // Define all label phrases per workflow
+  const labelsByWorkflow: Record<string, Record<string, string[]>> = {
+    'wound-care': {
+      'treatmentProvided': ['treatment provided', 'treatment', 'care provided', 'tx', 'intervention', 'wound care', 'dressing']
+    },
+    'shift-handoff': {
+      'situation': ['situation', 'current status', 'current situation', 'sit', 'status'],
+      'background': ['background', 'history', 'patient background', 'bg', 'back', 'medical history'],
+      'assessment': ['assessment', 'findings', 'clinical findings', 'assess'],
+      'recommendation': ['recommendation', 'plan', 'recommendations', 'rec', 'care plan'],
+      'pendingTasks': ['pending tasks', 'pending', 'tasks', 'pending items', 'to do'],
+      'criticalAlerts': ['critical alerts', 'alerts', 'critical', 'warnings']
+    },
+    'patient-assessment': {
+      'skinCondition': ['skin condition', 'skin', 'skin integrity', 'integument'],
+      'observations': ['observations', 'general observations', 'notes', 'additional notes', 'obs']
+    },
+    'medication-administration': {
+      'patientResponse': ['patient response', 'response', 'patient reaction', 'reaction', 'effect'],
+      'adverseReaction': ['adverse reaction', 'adverse reactions', 'adverses reactions', 'adverse effects', 'side effects', 'adverse', 'side effect']
+    }
+  };
 
-  const words = text.split(/\s+/);
-
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    current += (current ? ' ' : '') + word;
-
-    // Check if word ends with sentence terminator
-    if (word.match(/[.!?]$/)) {
-      // Check if it's an abbreviation
-      if (!isAbbreviation(word)) {
-        sentences.push(current.trim());
-        current = '';
-      }
+  const labels = labelsByWorkflow[workflowType] || {};
+  for (const [fieldKey, phraseList] of Object.entries(labels)) {
+    for (const phrase of phraseList) {
+      phrases.set(phrase.toLowerCase(), fieldKey);
     }
   }
 
-  // Add any remaining content
-  if (current.trim()) {
-    sentences.push(current.trim());
-  }
-
-  return sentences.filter(s => s.length > 0);
+  return phrases;
 }
 
 /**
- * Detect field markers in sentences
+ * Find all field markers in continuous text (without relying on punctuation)
  */
-function detectFieldMarkers(
-  sentences: string[],
+function findFieldMarkersInText(
+  transcript: string,
   workflowType: WorkflowType
 ): FieldMarker[] {
   const markers: FieldMarker[] = [];
+  const lowerTranscript = transcript.toLowerCase();
+  const phrases = getFieldLabelPhrases(workflowType);
 
-  // Patterns for field label detection
-  // "field_name: content" or "field_name, content" or "field_name content"
-  const patterns = [
-    /^(\w+(?:\s+\w+){0,3})[:]\s*(.+)/i,      // "situation: patient stable"
-    /^(\w+(?:\s+\w+){0,3}),\s*(.+)/i,        // "situation, patient stable"
-    /^(\w+(?:\s+\w+){0,3})\s+(.+)/i,         // "situation patient stable"
-  ];
+  // Sort phrases by length (longest first) to match longer phrases before shorter ones
+  const sortedPhrases = Array.from(phrases.entries()).sort((a, b) => b[0].length - a[0].length);
 
-  for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i];
+  // Track which positions are already claimed by a match
+  const claimedPositions = new Set<number>();
 
-    for (const pattern of patterns) {
-      const match = sentence.match(pattern);
+  for (const [phrase, fieldKey] of sortedPhrases) {
+    let searchStart = 0;
 
-      if (match) {
-        const potentialLabel = match[1];
-        const fieldMatch = matchFieldLabel(potentialLabel, workflowType);
+    while (true) {
+      const pos = lowerTranscript.indexOf(phrase, searchStart);
+      if (pos === -1) break;
 
-        if (fieldMatch && fieldMatch.confidence >= 0.7) {
-          markers.push({
-            fieldKey: fieldMatch.fieldKey,
-            position: i,
-            confidence: fieldMatch.confidence,
-            phrase: potentialLabel
-          });
-          break; // Found a marker, move to next sentence
+      // Check if this position is already claimed
+      let isClaimed = false;
+      for (let i = pos; i < pos + phrase.length; i++) {
+        if (claimedPositions.has(i)) {
+          isClaimed = true;
+          break;
         }
       }
+
+      if (!isClaimed) {
+        // Check word boundaries (not in middle of a word)
+        const charBefore = pos > 0 ? lowerTranscript[pos - 1] : ' ';
+        const charAfter = pos + phrase.length < lowerTranscript.length
+          ? lowerTranscript[pos + phrase.length]
+          : ' ';
+
+        const isWordBoundaryBefore = /[\s.,;:!?]/.test(charBefore) || pos === 0;
+        const isWordBoundaryAfter = /[\s.,;:!?]/.test(charAfter) || pos + phrase.length === lowerTranscript.length;
+
+        if (isWordBoundaryBefore && isWordBoundaryAfter) {
+          markers.push({
+            fieldKey,
+            position: pos,
+            endPosition: pos + phrase.length,
+            confidence: phrase.length > 10 ? 1.0 : 0.9, // Longer phrases = higher confidence
+            phrase: transcript.substring(pos, pos + phrase.length)
+          });
+
+          // Claim these positions
+          for (let i = pos; i < pos + phrase.length; i++) {
+            claimedPositions.add(i);
+          }
+        }
+      }
+
+      searchStart = pos + 1;
     }
   }
+
+  // Sort by position in transcript
+  markers.sort((a, b) => a.position - b.position);
 
   return markers;
 }
@@ -148,6 +168,7 @@ function mergeDuplicateFields(
 
 /**
  * Segment transcript into field-specific content
+ * Handles continuous speech without punctuation
  * @param transcript The full voice transcript
  * @param workflowType The current workflow type
  * @returns Segmentation result with field segments and warnings
@@ -166,21 +187,10 @@ export function segmentTranscript(
     };
   }
 
-  // Step 1: Tokenize transcript into sentences
-  const sentences = tokenizeSentences(transcript);
+  // Find all field markers in the continuous text
+  const markers = findFieldMarkersInText(transcript, workflowType);
 
-  if (sentences.length === 0) {
-    return {
-      segments: [],
-      unmatchedContent: transcript,
-      warnings: ['Could not tokenize transcript']
-    };
-  }
-
-  // Step 2: Identify field markers
-  const markers = detectFieldMarkers(sentences, workflowType);
-
-  // Step 3: Check if no markers found
+  // Check if no markers found
   if (markers.length === 0) {
     return {
       segments: [],
@@ -189,45 +199,39 @@ export function segmentTranscript(
     };
   }
 
-  // Step 4: Extract content between markers
+  // Extract content between markers
   const segments: FieldSegment[] = [];
 
   for (let i = 0; i < markers.length; i++) {
     const currentMarker = markers[i];
     const nextMarker = markers[i + 1];
 
-    const startIdx = currentMarker.position;
-    const endIdx = nextMarker ? nextMarker.position : sentences.length;
+    // Content starts after the field label
+    const contentStart = currentMarker.endPosition;
+    // Content ends at the next marker or end of transcript
+    const contentEnd = nextMarker ? nextMarker.position : transcript.length;
 
-    // Extract sentences between markers
-    const fieldSentences = sentences.slice(startIdx, endIdx);
+    // Extract and clean content
+    let content = transcript.substring(contentStart, contentEnd).trim();
 
-    // Remove the field label from first sentence
-    let content = fieldSentences[0].replace(
-      new RegExp(`^${escapeRegex(currentMarker.phrase)}[:, ]?\\s*`, 'i'),
-      ''
-    );
-
-    // Append remaining sentences
-    if (fieldSentences.length > 1) {
-      content += ' ' + fieldSentences.slice(1).join(' ');
-    }
+    // Remove leading punctuation/whitespace
+    content = content.replace(/^[\s.,;:!?]+/, '').trim();
 
     // Only add if content is not empty
-    if (content.trim().length > 0) {
+    if (content.length > 0) {
       segments.push({
         fieldKey: currentMarker.fieldKey,
-        content: content.trim(),
+        content: content,
         confidence: currentMarker.confidence,
-        startPosition: startIdx,
-        endPosition: endIdx
+        startPosition: currentMarker.position,
+        endPosition: contentEnd
       });
     } else {
       warnings.push(`Field "${currentMarker.fieldKey}" mentioned but no content provided`);
     }
   }
 
-  // Step 5: Handle duplicate field mentions
+  // Handle duplicate field mentions
   const mergedSegments = mergeDuplicateFields(segments, warnings);
 
   return {
@@ -235,13 +239,6 @@ export function segmentTranscript(
     unmatchedContent: '',
     warnings
   };
-}
-
-/**
- * Escape special regex characters
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

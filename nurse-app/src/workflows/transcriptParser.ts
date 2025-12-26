@@ -173,17 +173,25 @@ export const parseRoomNumber = (transcript: string): string | undefined => {
 
 // Medication name patterns
 export const parseMedicationName = (transcript: string): string[] => {
-  // Common medication keywords
+  const medications: string[] = [];
+
+  // Pattern 1: "medication name [actual name]" - handles voice input saying the field label
+  const medNamePattern = /medication\s+name\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/gi;
+  const medNameMatches = transcript.matchAll(medNamePattern);
+  for (const match of medNameMatches) {
+    if (match[1]) {
+      medications.push(match[1].trim());
+    }
+  }
+
+  // Pattern 2: Common medication keywords followed by name
   const medKeywords = [
     'administered',
     'given',
     'gave',
-    'medication',
     'med',
     'drug',
   ];
-
-  const medications: string[] = [];
 
   // Look for medication names after keywords
   medKeywords.forEach((keyword) => {
