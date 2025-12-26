@@ -2,6 +2,80 @@
  * Utilities for parsing voice transcripts and extracting structured data
  */
 
+/**
+ * All possible field labels that users might speak across all workflows.
+ * These are used to detect field boundaries when parsing transcripts.
+ * When extracting content for one field, we stop at the next field label.
+ */
+const ALL_FIELD_LABELS = [
+  // Medication Administration fields
+  'patient id', 'medication name', 'dosage', 'dose', 'route', 'route of administration',
+  'time administered', 'patient response', 'patient reaction', 'adverse reaction',
+  'adverse effects', 'side effects',
+  // Vital Signs fields
+  'blood pressure', 'bp', 'heart rate', 'pulse', 'temperature', 'temp',
+  'respiratory rate', 'respiration', 'oxygen saturation', 'o2 sat', 'spo2',
+  'pain level', 'pain score',
+  // Patient Assessment fields
+  'level of consciousness', 'consciousness', 'mobility', 'mobility status',
+  'skin condition', 'skin', 'observations', 'general observations', 'notes',
+  // Wound Care fields
+  'wound location', 'wound type', 'wound size', 'length', 'width', 'depth',
+  'drainage amount', 'drainage type', 'treatment', 'treatment provided',
+  // Shift Handoff fields (SBAR)
+  'situation', 'background', 'assessment', 'recommendation', 'pending tasks',
+  'critical alerts', 'outgoing nurse', 'incoming nurse',
+  // Intake/Output fields
+  'intake', 'output', 'fluid intake', 'urine output'
+];
+
+/**
+ * Build a regex pattern that matches any field label (case insensitive)
+ * Sorted by length descending so longer labels match first
+ */
+function buildFieldLabelRegex(): RegExp {
+  const sortedLabels = [...ALL_FIELD_LABELS].sort((a, b) => b.length - a.length);
+  const escaped = sortedLabels.map(label => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`\\b(?:${escaped.join('|')})\\b`, 'gi');
+}
+
+const FIELD_LABEL_REGEX = buildFieldLabelRegex();
+
+/**
+ * Extract content for a specific field, stopping at the next field label.
+ * This ensures we don't accidentally include content meant for other fields.
+ *
+ * @param transcript The full transcript
+ * @param fieldLabelPattern Pattern matching the start of this field (e.g., /medication\s+name/i)
+ * @returns The content after the field label, up to the next field label, or null if not found
+ */
+function extractContentUntilNextField(transcript: string, fieldLabelPattern: RegExp): string | null {
+  const match = transcript.match(fieldLabelPattern);
+  if (!match || match.index === undefined) return null;
+
+  // Get text after the matched field label
+  const startPos = match.index + match[0].length;
+  const remainingText = transcript.substring(startPos);
+
+  // Find the next field label (use non-global regex to get index)
+  const nonGlobalRegex = new RegExp(FIELD_LABEL_REGEX.source, 'i');
+  const nextFieldMatch = remainingText.match(nonGlobalRegex);
+
+  let content: string;
+  if (nextFieldMatch && nextFieldMatch.index !== undefined) {
+    // Extract only up to the next field label
+    content = remainingText.substring(0, nextFieldMatch.index);
+  } else {
+    // No more field labels, take the rest
+    content = remainingText;
+  }
+
+  // Clean up: remove leading/trailing whitespace and common punctuation
+  content = content.replace(/^[\s.,;:!?]+/, '').replace(/[\s.,;:!?]+$/, '').trim();
+
+  return content.length > 0 ? content : null;
+}
+
 // Blood pressure patterns
 export const parseBloodPressure = (transcript: string): { systolic?: number; diastolic?: number; bp?: string } => {
   // Patterns: "120/80", "120 over 80", "BP 120/80", "blood pressure 120 over 80"
@@ -176,11 +250,13 @@ export const parseMedicationName = (transcript: string): string[] => {
   const medications: string[] = [];
 
   // Pattern 1: "medication name [actual name]" - handles voice input saying the field label
-  const medNamePattern = /medication\s+name\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/gi;
-  const medNameMatches = transcript.matchAll(medNamePattern);
-  for (const match of medNameMatches) {
-    if (match[1]) {
-      medications.push(match[1].trim());
+  // Use field-aware extraction to stop at the next field label
+  const medNameContent = extractContentUntilNextField(transcript, /medication\s+name\b/i);
+  if (medNameContent) {
+    // Extract just the medication name (first word or two, alphabetic only)
+    const nameMatch = medNameContent.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)?)/);
+    if (nameMatch) {
+      medications.push(nameMatch[1].trim());
     }
   }
 
@@ -193,13 +269,14 @@ export const parseMedicationName = (transcript: string): string[] => {
     'drug',
   ];
 
-  // Look for medication names after keywords
+  // Look for medication names after keywords (also field-aware)
   medKeywords.forEach((keyword) => {
-    const regex = new RegExp(`${keyword}[:\\s]+([A-Za-z]+(?:\\s+[A-Za-z]+)?)`, 'gi');
-    const matches = transcript.matchAll(regex);
-    for (const match of matches) {
-      if (match[1]) {
-        medications.push(match[1].trim());
+    const keywordPattern = new RegExp(`\\b${keyword}\\b`, 'i');
+    const content = extractContentUntilNextField(transcript, keywordPattern);
+    if (content) {
+      const nameMatch = content.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)?)/);
+      if (nameMatch) {
+        medications.push(nameMatch[1].trim());
       }
     }
   });

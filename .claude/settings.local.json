@@ -28,7 +28,10 @@
       "Bash(powershell -Command:*)",
       "Bash(taskkill:*)",
       "Bash(npx tsc:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd nurse name fields to shift handoff workflow\n\nEnhanced SBAR shift handoff with outgoing/incoming nurse tracking:\n- Added outgoingNurse and incomingNurse field mappings in fieldLabelMatcher\n- Updated transcriptSegmenter with nurse name recognition phrases\n- Improved voice recording tip to include nurse identification\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd nurse name fields to shift handoff workflow\n\nEnhanced SBAR shift handoff with outgoing/incoming nurse tracking:\n- Added outgoingNurse and incomingNurse field mappings in fieldLabelMatcher\n- Updated transcriptSegmenter with nurse name recognition phrases\n- Improved voice recording tip to include nurse identification\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRemove TranscriptViewer component from workflow forms\n\nClean up workflow components by removing the TranscriptViewer UI element and isRecording prop that are no longer needed. This streamlines the workflow forms to focus on structured data entry.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(node:*)",
+      "Bash(timeout 10 npm run dev:*)"
     ]
   }
 }

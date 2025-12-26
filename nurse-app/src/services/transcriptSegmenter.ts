@@ -38,7 +38,24 @@ function getFieldLabelPhrases(workflowType: WorkflowType): Map<string, string> {
 
   // Define all label phrases per workflow
   const labelsByWorkflow: Record<string, Record<string, string[]>> = {
+    'vital-signs': {
+      'systolic': ['systolic', 'systolic pressure'],
+      'diastolic': ['diastolic', 'diastolic pressure'],
+      'bloodPressure': ['blood pressure', 'bp'],
+      'heartRate': ['heart rate', 'pulse', 'hr'],
+      'temperature': ['temperature', 'temp'],
+      'respiratoryRate': ['respiratory rate', 'respiration', 'rr', 'respirations'],
+      'oxygenSaturation': ['oxygen saturation', 'o2 sat', 'spo2', 'oxygen sat', 'o2'],
+      'painLevel': ['pain level', 'pain', 'pain score']
+    },
     'wound-care': {
+      'woundLocation': ['wound location', 'location', 'wound site', 'site'],
+      'woundType': ['wound type', 'type of wound', 'wound kind'],
+      'length': ['length', 'wound length'],
+      'width': ['width', 'wound width'],
+      'depth': ['depth', 'wound depth'],
+      'drainageAmount': ['drainage amount', 'drainage', 'amount of drainage'],
+      'drainageType': ['drainage type', 'type of drainage'],
       'treatmentProvided': ['treatment provided', 'treatment', 'care provided', 'tx', 'intervention', 'wound care', 'dressing']
     },
     'shift-handoff': {
@@ -52,10 +69,17 @@ function getFieldLabelPhrases(workflowType: WorkflowType): Map<string, string> {
       'criticalAlerts': ['critical alerts', 'alerts', 'critical', 'warnings']
     },
     'patient-assessment': {
+      'levelOfConsciousness': ['level of consciousness', 'consciousness', 'loc', 'mental status'],
+      'mobilityStatus': ['mobility status', 'mobility', 'ambulation', 'ambulatory status'],
+      'painLevel': ['pain level', 'pain', 'pain score'],
       'skinCondition': ['skin condition', 'skin', 'skin integrity', 'integument'],
       'observations': ['observations', 'general observations', 'notes', 'additional notes', 'obs']
     },
     'medication-administration': {
+      'medicationName': ['medication name', 'medication', 'med name', 'drug name'],
+      'dosage': ['dosage', 'dose', 'amount'],
+      'route': ['route', 'route of administration', 'administration route', 'via'],
+      'timeAdministered': ['time administered', 'time given', 'administered at', 'given at'],
       'patientResponse': ['patient response', 'response', 'patient reaction', 'reaction', 'effect'],
       'adverseReaction': ['adverse reaction', 'adverse reactions', 'adverses reactions', 'adverse effects', 'side effects', 'adverse', 'side effect']
     }
