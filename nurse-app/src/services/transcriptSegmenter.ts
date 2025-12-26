@@ -165,9 +165,10 @@ function findFieldMarkersInText(
 }
 
 /**
- * Merge content for duplicate field mentions
+ * Handle duplicate field mentions by using the LAST mentioned value
+ * When a user mentions a field multiple times, the last mention is treated as a correction
  */
-function mergeDuplicateFields(
+function handleDuplicateFields(
   segments: FieldSegment[],
   warnings: string[]
 ): FieldSegment[] {
@@ -175,18 +176,12 @@ function mergeDuplicateFields(
 
   for (const segment of segments) {
     if (fieldMap.has(segment.fieldKey)) {
-      const existing = fieldMap.get(segment.fieldKey)!;
-
-      // Merge content with separator
-      existing.content += '. ' + segment.content;
-      existing.confidence = Math.min(existing.confidence, segment.confidence);
-
       warnings.push(
-        `Field "${segment.fieldKey}" mentioned multiple times - content merged`
+        `Field "${segment.fieldKey}" mentioned again - updated to latest value`
       );
-    } else {
-      fieldMap.set(segment.fieldKey, { ...segment });
     }
+    // Always use the latest value (last mention wins)
+    fieldMap.set(segment.fieldKey, { ...segment });
   }
 
   return Array.from(fieldMap.values());
@@ -257,8 +252,8 @@ export function segmentTranscript(
     }
   }
 
-  // Handle duplicate field mentions
-  const mergedSegments = mergeDuplicateFields(segments, warnings);
+  // Handle duplicate field mentions - last value wins
+  const mergedSegments = handleDuplicateFields(segments, warnings);
 
   return {
     segments: mergedSegments,

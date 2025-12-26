@@ -324,6 +324,8 @@ class VoiceService {
 
   /**
    * Start recording
+   * Note: Transcripts are preserved across recording sessions within the same workflow.
+   * Call clearTranscripts() explicitly to reset (on submit, cancel, or workflow change).
    */
   startRecording(): void {
     if (!this.isInitialized) {
@@ -340,8 +342,9 @@ class VoiceService {
       return;
     }
 
-    // Clear transcripts from previous recording session
-    this.finalTranscript = '';
+    // Do NOT clear transcripts here - preserve across recording sessions
+    // This allows users to stop/start recording while keeping accumulated content
+    // Transcripts are cleared explicitly via clearTranscripts() on submit/cancel/workflow change
     this.interimTranscript = '';
     this.isPaused = false;
 

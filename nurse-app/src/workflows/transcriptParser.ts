@@ -3,6 +3,17 @@
  */
 
 /**
+ * Find the LAST match of a pattern in the transcript.
+ * When a value is mentioned multiple times, the last mention is treated as a correction.
+ */
+function findLastMatch(transcript: string, pattern: RegExp): RegExpMatchArray | null {
+  // Make sure we have a global regex to find all matches
+  const globalPattern = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g');
+  const matches = Array.from(transcript.matchAll(globalPattern));
+  return matches.length > 0 ? matches[matches.length - 1] : null;
+}
+
+/**
  * All possible field labels that users might speak across all workflows.
  * These are used to detect field boundaries when parsing transcripts.
  * When extracting content for one field, we stop at the next field label.
@@ -86,14 +97,17 @@ export const parseBloodPressure = (transcript: string): { systolic?: number; dia
     /\b(\d{2,3})\s+over\s+(\d{2,3})\b/i,
   ];
 
+  // Find all valid matches and return the LAST one (correction behavior)
+  let lastValidMatch: { systolic: number; diastolic: number; bp: string } | null = null;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const systolic = parseInt(match[1]);
       const diastolic = parseInt(match[2]);
       // Validate ranges (systolic: 70-250, diastolic: 40-150)
       if (systolic >= 70 && systolic <= 250 && diastolic >= 40 && diastolic <= 150) {
-        return {
+        lastValidMatch = {
           systolic,
           diastolic,
           bp: `${systolic}/${diastolic}`,
@@ -102,7 +116,7 @@ export const parseBloodPressure = (transcript: string): { systolic?: number; dia
     }
   }
 
-  return {};
+  return lastValidMatch || {};
 };
 
 // Heart rate patterns
@@ -112,18 +126,21 @@ export const parseHeartRate = (transcript: string): number | undefined => {
     /pulse[:\s]*(\d{2,3})/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidHr: number | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const hr = parseInt(match[1]);
       // Validate range (30-250 bpm)
       if (hr >= 30 && hr <= 250) {
-        return hr;
+        lastValidHr = hr;
       }
     }
   }
 
-  return undefined;
+  return lastValidHr;
 };
 
 // Temperature patterns
@@ -133,18 +150,21 @@ export const parseTemperature = (transcript: string): number | undefined => {
     /(\d{2}\.?\d*)\s*degrees?\s*(?:F|Fahrenheit)?/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidTemp: number | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const temp = parseFloat(match[1]);
       // Validate range (95-107°F for human temperature)
       if (temp >= 95 && temp <= 107) {
-        return temp;
+        lastValidTemp = temp;
       }
     }
   }
 
-  return undefined;
+  return lastValidTemp;
 };
 
 // Respiratory rate patterns
@@ -154,18 +174,21 @@ export const parseRespiratoryRate = (transcript: string): number | undefined => 
     /(\d{1,2})\s*(?:breaths|respirations)\s*per\s*minute/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidRr: number | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const rr = parseInt(match[1]);
       // Validate range (8-60 breaths/min)
       if (rr >= 8 && rr <= 60) {
-        return rr;
+        lastValidRr = rr;
       }
     }
   }
 
-  return undefined;
+  return lastValidRr;
 };
 
 // Oxygen saturation patterns
@@ -175,18 +198,21 @@ export const parseOxygenSaturation = (transcript: string): number | undefined =>
     /sat[:\s]*(\d{2,3})\s*%/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidO2: number | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const o2 = parseInt(match[1]);
       // Validate range (70-100%)
       if (o2 >= 70 && o2 <= 100) {
-        return o2;
+        lastValidO2 = o2;
       }
     }
   }
 
-  return undefined;
+  return lastValidO2;
 };
 
 // Pain level patterns
@@ -197,18 +223,21 @@ export const parsePainLevel = (transcript: string): number | undefined => {
     /(\d{1,2})\s*out of\s*10\s*pain/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidPain: number | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       const pain = parseInt(match[1]);
       // Validate range (0-10)
       if (pain >= 0 && pain <= 10) {
-        return pain;
+        lastValidPain = pain;
       }
     }
   }
 
-  return undefined;
+  return lastValidPain;
 };
 
 // Patient ID patterns
@@ -218,14 +247,17 @@ export const parsePatientId = (transcript: string): string | undefined => {
     /(?:MRN|medical record number)[:\s]*([A-Z0-9]{3,10})/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidId: string | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
-      return match[1].toUpperCase();
+      lastValidId = match[1].toUpperCase();
     }
   }
 
-  return undefined;
+  return lastValidId;
 };
 
 // Room number patterns
@@ -235,14 +267,17 @@ export const parseRoomNumber = (transcript: string): string | undefined => {
     /(?:in|at)\s+(?:room\s+)?(\d{3,4}[A-Z]?)/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidRoom: string | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
-      return match[1].toUpperCase();
+      lastValidRoom = match[1].toUpperCase();
     }
   }
 
-  return undefined;
+  return lastValidRoom;
 };
 
 // Medication name patterns
@@ -290,14 +325,17 @@ export const parseDosage = (transcript: string): string | undefined => {
     /(\d+\.?\d*)\s*(mg|milligrams?|mcg|micrograms?|units?|ml|cc|grams?|g)/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidDosage: string | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
-      return `${match[1]} ${match[2].toLowerCase()}`;
+      lastValidDosage = `${match[1]} ${match[2].toLowerCase()}`;
     }
   }
 
-  return undefined;
+  return lastValidDosage;
 };
 
 // Route patterns
@@ -418,10 +456,13 @@ export const parseWoundSize = (transcript: string): { length?: number; width?: n
     /(\d+\.?\d*)\s*(?:cm|centimeters?)?\s*(?:by|x)\s*(\d+\.?\d*)\s*(?:cm|centimeters?)?\s*(?:by|x)?\s*(\d+\.?\d*)?\s*(?:cm|centimeters?)?/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidSize: { length?: number; width?: number; depth?: number } | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
-      return {
+      lastValidSize = {
         length: parseFloat(match[1]),
         width: parseFloat(match[2]),
         depth: match[3] ? parseFloat(match[3]) : undefined,
@@ -429,7 +470,7 @@ export const parseWoundSize = (transcript: string): { length?: number; width?: n
     }
   }
 
-  return undefined;
+  return lastValidSize;
 };
 
 // Extract timestamp or time from transcript
@@ -439,8 +480,11 @@ export const parseTime = (transcript: string): string | undefined => {
     /(?:at\s+)?(\d{1,2}):(\d{2})\s*(AM|PM)?/i,
   ];
 
+  // Find the LAST valid match (correction behavior)
+  let lastValidTime: string | undefined;
+
   for (const pattern of patterns) {
-    const match = transcript.match(pattern);
+    const match = findLastMatch(transcript, pattern);
     if (match) {
       let hours = parseInt(match[1]);
       const minutes = match[2];
@@ -452,11 +496,11 @@ export const parseTime = (transcript: string): string | undefined => {
         hours = 0;
       }
 
-      return `${hours.toString().padStart(2, '0')}:${minutes}`;
+      lastValidTime = `${hours.toString().padStart(2, '0')}:${minutes}`;
     }
   }
 
-  return undefined;
+  return lastValidTime;
 };
 
 /**

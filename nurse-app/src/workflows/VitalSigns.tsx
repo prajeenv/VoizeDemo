@@ -56,6 +56,7 @@ export const VitalSigns: React.FC<WorkflowBaseProps> = ({
   const [editedTranscript, setEditedTranscript] = useState(transcript || '');
 
   // Auto-fill fields from transcript
+  // Always use the latest extracted values (last mention wins for corrections)
   useEffect(() => {
     // Skip if transcript is empty or hasn't changed meaningfully
     if (!transcript || transcript.trim() === '') return;
@@ -65,37 +66,38 @@ export const VitalSigns: React.FC<WorkflowBaseProps> = ({
     const newAutoFilled = new Set<string>();
     const updates: Partial<VitalSignsData> = {};
 
-    if (vitalSigns.systolic && formData.systolic === 0) {
+    // Always update with the latest extracted value (enables corrections)
+    if (vitalSigns.systolic) {
       updates.systolic = vitalSigns.systolic;
       newAutoFilled.add('systolic');
     }
 
-    if (vitalSigns.diastolic && formData.diastolic === 0) {
+    if (vitalSigns.diastolic) {
       updates.diastolic = vitalSigns.diastolic;
       newAutoFilled.add('diastolic');
     }
 
-    if (vitalSigns.heartRate && formData.heartRate === 0) {
+    if (vitalSigns.heartRate) {
       updates.heartRate = vitalSigns.heartRate;
       newAutoFilled.add('heartRate');
     }
 
-    if (vitalSigns.temperature && formData.temperature === 0) {
+    if (vitalSigns.temperature) {
       updates.temperature = vitalSigns.temperature;
       newAutoFilled.add('temperature');
     }
 
-    if (vitalSigns.respiratoryRate && formData.respiratoryRate === 0) {
+    if (vitalSigns.respiratoryRate) {
       updates.respiratoryRate = vitalSigns.respiratoryRate;
       newAutoFilled.add('respiratoryRate');
     }
 
-    if (vitalSigns.oxygenSaturation && formData.oxygenSaturation === 0) {
+    if (vitalSigns.oxygenSaturation) {
       updates.oxygenSaturation = vitalSigns.oxygenSaturation;
       newAutoFilled.add('oxygenSaturation');
     }
 
-    if (vitalSigns.painLevel !== undefined && formData.painLevel === 0) {
+    if (vitalSigns.painLevel !== undefined) {
       updates.painLevel = vitalSigns.painLevel;
       newAutoFilled.add('painLevel');
     }
