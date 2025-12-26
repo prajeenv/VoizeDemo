@@ -8,7 +8,6 @@ import {
   type WorkflowBaseProps,
   FieldGroup,
   FormField,
-  TranscriptViewer,
   FormActions,
   validateForm,
   type WorkflowField,
@@ -29,7 +28,6 @@ interface ShiftHandoffData {
 
 export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
   transcript,
-  isRecording,
   onSubmit,
   onCancel,
 }) => {
@@ -223,12 +221,6 @@ export const ShiftHandoff: React.FC<WorkflowBaseProps> = ({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <TranscriptViewer
-          transcript={editedTranscript}
-          isRecording={isRecording}
-          onEdit={setEditedTranscript}
-        />
-
         <FieldGroup title="Handoff Information">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

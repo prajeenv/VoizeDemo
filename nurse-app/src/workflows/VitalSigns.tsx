@@ -8,7 +8,6 @@ import {
   type WorkflowBaseProps,
   FieldGroup,
   FormField,
-  TranscriptViewer,
   FormActions,
   validateForm,
   type WorkflowField,
@@ -37,7 +36,6 @@ const temperatureMethodOptions = [
 
 export const VitalSigns: React.FC<WorkflowBaseProps> = ({
   transcript,
-  isRecording,
   onSubmit,
   onCancel,
 }) => {
@@ -287,12 +285,6 @@ export const VitalSigns: React.FC<WorkflowBaseProps> = ({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <TranscriptViewer
-          transcript={editedTranscript}
-          isRecording={isRecording}
-          onEdit={setEditedTranscript}
-        />
-
         <FieldGroup title="Blood Pressure">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

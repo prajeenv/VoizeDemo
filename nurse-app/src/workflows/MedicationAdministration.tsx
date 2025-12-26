@@ -8,7 +8,6 @@ import {
   type WorkflowBaseProps,
   FieldGroup,
   FormField,
-  TranscriptViewer,
   FormActions,
   validateForm,
   type WorkflowField,
@@ -43,7 +42,6 @@ const routeOptions = [
 
 export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
   transcript,
-  isRecording,
   onSubmit,
   onCancel,
 }) => {
@@ -215,12 +213,6 @@ export const MedicationAdministration: React.FC<WorkflowBaseProps> = ({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <TranscriptViewer
-          transcript={editedTranscript}
-          isRecording={isRecording}
-          onEdit={setEditedTranscript}
-        />
-
         {/* Voice Recording Tips */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-900 font-semibold mb-1">
